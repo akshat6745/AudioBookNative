@@ -1,7 +1,7 @@
 // Configuration settings for the app
 
 // Backend API URL - change this if your server runs on a different host or port
-export const API_URL = 'http://localhost:8000';
+export const API_URL = 'https://police-twisted-olive-peter.trycloudflare.com';
 
 // Default TTS voice
 export const DEFAULT_VOICE = 'en-US-ChristopherNeural';
