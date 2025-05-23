@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Modal, Pressable, Platform } from 'react-native';
-import { Audio } from 'expo-av';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { Audio } from 'expo-av';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Modal, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { getTtsStreamUrl } from '../services/api';
 import { DEFAULT_VOICE } from '../utils/config';
 
@@ -1209,59 +1209,45 @@ const FloatingAudioPlayer = ({
         <View style={styles.playerContainer}>
           {/* Restart Button */}
           <TouchableOpacity 
-            style={styles.controlButton} 
+            style={[styles.controlButton, { width: 40, height: 40, borderRadius: 20, marginHorizontal: 10 }]} 
             onPress={handleRestart}
             activeOpacity={0.7}
           >
-            <FontAwesome5 name="redo" size={28} color="#333" solid />
+            <FontAwesome5 name="redo" size={18} color="#333" solid />
           </TouchableOpacity>
 
           {/* Play/Pause Button */}
           <TouchableOpacity 
-            style={styles.playButton} 
+            style={[styles.playButton, { width: 48, height: 48, borderRadius: 24, marginHorizontal: 10 }]}
             onPress={handlePlayPause}
             disabled={loading}
             activeOpacity={0.7}
           >
-            {/* <FontAwesome5
-              // style={{
-              //   elevation: 6,
-              //   backgroundColor: 'red',
-              //   color: 'white',
-              // }}
+            <FontAwesome5
               name={isPlaying ? "pause" : "play"}
-              // size={30}
-              // color="#fff"
-              // solid
-            /> */}
-            <Text style={{
-              color: 'white',
-              fontSize: 16,
-              fontWeight: 'bold',
-            }}>{isPlaying ? "Pause": "Play"}</Text>
+              size={22}
+              color="#fff"
+              solid
+            />
           </TouchableOpacity>
 
           {/* Next Button */}
           <TouchableOpacity 
             style={[
               styles.controlButton, 
+              { width: 40, height: 40, borderRadius: 20, marginHorizontal: 10 },
               initialParagraphIndex < paragraphs.length - 1 ? {} : styles.disabledButton
             ]} 
             onPress={handleNextParagraph}
             disabled={!(initialParagraphIndex < paragraphs.length - 1) || loading}
             activeOpacity={0.7}
           >
-            {/* <FontAwesome5 
+            <FontAwesome5 
               name="step-forward" 
-              size={24} 
+              size={18} 
               color={initialParagraphIndex < paragraphs.length - 1 ? "#333" : "#999"}
               solid 
-            /> */}
-            <Text style={{
-              color: 'black',
-              fontSize: 16,
-              fontWeight: 'bold',
-            }}>Next</Text>
+            />
           </TouchableOpacity>
         </View>
       </View>
@@ -1331,7 +1317,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#333',
   },
@@ -1341,23 +1327,22 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   controlsContainer: {
-    marginTop: 15,
-    marginBottom: 10,
+    marginTop: 8,
+    marginBottom: 5,
   },
   settingsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 15,
+    marginBottom: 8,
   },
   dropdownButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f0f0f0',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginHorizontal: 8,
-    // Shadow for better visibility
+    borderRadius: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    marginHorizontal: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
@@ -1365,31 +1350,30 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   buttonIcon: {
-    marginRight: 8,
+    marginRight: 4,
   },
   dropdownButtonText: {
     color: '#007bff',
-    marginRight: 4,
-    fontSize: 16,
+    marginRight: 2,
+    fontSize: 12,
   },
   playerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    marginTop: 15,
-    marginBottom: 20,
-    padding: 10,
-    marginHorizontal: 10,
+    marginTop: 8,
+    marginBottom: 10,
+    padding: 4,
+    marginHorizontal: 4,
   },
   controlButton: {
     backgroundColor: '#f0f0f0',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: 20,
-    // Simple shadow
+    marginHorizontal: 4,
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 1},
     shadowOpacity: 0.2,
@@ -1398,18 +1382,17 @@ const styles = StyleSheet.create({
   },
   playButton: {
     backgroundColor: '#007bff',
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: 20,
-    // Enhanced shadow for play button
+    marginHorizontal: 4,
     shadowColor: '#007bff',
-    shadowOffset: {width: 0, height: 3},
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.3,
+    shadowRadius: 1,
+    elevation: 2,
   },
   disabledButton: {
     backgroundColor: '#e0e0e0',
