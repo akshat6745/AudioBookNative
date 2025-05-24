@@ -519,7 +519,7 @@ const FloatingAudioPlayer = ({
                           currentSound.current
                         ) {
                           console.log(
-                            `Auto-playing paragraph ${initialParagraphIndex} after fresh load`
+                            `Auto-playing paragraph ${initialParagraphIndex} after error recovery`
                           );
                           currentSound.current
                             .playAsync()
@@ -1307,6 +1307,47 @@ const FloatingAudioPlayer = ({
       isTransitioning.current = false;
     };
   }, []);
+
+  // Add a useEffect to handle chapter (paragraphs) change and auto-play first paragraph with current settings
+  useEffect(() => {
+    if (!isVisible) return;
+    if (!paragraphs || paragraphs.length === 0) return;
+
+    // When paragraphs change, auto-play the first paragraph with current settings
+    // Only trigger if paragraphs array reference changes (i.e., new chapter loaded)
+    // This will not interfere with normal paragraph navigation
+    (async () => {
+      // Stop any current audio
+      if (currentSound.current) {
+        try {
+          currentSound.current.setOnPlaybackStatusUpdate(null);
+          await currentSound.current.stopAsync().catch(() => {});
+          await currentSound.current.unloadAsync().catch(() => {});
+        } catch (err) {
+          // ignore
+        }
+        currentSound.current = null;
+      }
+      setIsPlaying(false);
+      setError(null);
+      setLoading(true);
+      // Load and play the first paragraph
+      const firstText = paragraphs[0];
+      if (firstText && firstText.trim().length > 0) {
+        const success = await loadAudioForText(firstText, 0);
+        if (success && currentSound.current) {
+          try {
+            await currentSound.current.playAsync();
+            setIsPlaying(true);
+          } catch (err) {
+            setError("Failed to auto-play new chapter");
+          }
+        }
+      }
+      setLoading(false);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paragraphs]);
 
   if (!isVisible) return null;
 

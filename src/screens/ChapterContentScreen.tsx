@@ -1,15 +1,15 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { fetchChapterContent, fetchChapters, logTtsMetrics } from '../services/api';
-import { RootStackParamList, Chapter } from '../types';
-import Loading from '../components/Loading';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import ApiMonitor from '../components/ApiMonitor';
 import ErrorDisplay from '../components/ErrorDisplay';
 import FloatingAudioPlayer from '../components/FloatingAudioPlayer';
-import ApiMonitor from '../components/ApiMonitor';
+import Loading from '../components/Loading';
+import { fetchChapterContent, fetchChapters, logTtsMetrics } from '../services/api';
+import { Chapter, RootStackParamList } from '../types';
 import { DEFAULT_VOICE } from '../utils/config';
-import { Ionicons } from '@expo/vector-icons';
 
 type ChapterContentScreenRouteProp = RouteProp<RootStackParamList, 'ChapterContent'>;
 type ChapterContentScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ChapterContent'>;
@@ -119,12 +119,9 @@ const ChapterContentScreen = () => {
 
   const loadAllChapters = async () => {
     try {
-      const chapters = await fetchChapters(novelName);
-      
-      // Type assertion to ensure the chapters match the expected type
-      const typedChapters = chapters as unknown as typeof availableChapters;
-      setAvailableChapters(typedChapters);
-      return typedChapters;
+      const paginated = await fetchChapters(novelName);
+      setAvailableChapters(paginated.chapters);
+      return paginated.chapters;
     } catch (err) {
       console.error('Error loading all chapters:', err);
       return [] as typeof availableChapters;
