@@ -1,7 +1,7 @@
 // Configuration settings for the app
 
 // Backend API URL - change this if your server runs on a different host or port
-export const API_URL = 'https://manor-specifically-lafayette-january.trycloudflare.com';
+export const API_URL = 'https://audiobookpython-200053699763.asia-south2.run.app/';
 
 // Default TTS voice
 export const DEFAULT_VOICE = 'en-US-ChristopherNeural';
