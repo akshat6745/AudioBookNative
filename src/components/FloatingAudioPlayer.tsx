@@ -2,15 +2,15 @@ import { FontAwesome5 } from "@expo/vector-icons";
 import { Audio } from "expo-av";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    Animated,
-    Modal,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Animated,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { getTtsStreamUrl } from "../services/api";
 import { DEFAULT_VOICE } from "../utils/config";
@@ -296,69 +296,68 @@ const FloatingAudioPlayer = ({
           console.warn(`Error waiting for in-progress audio: ${err}`);
           // Continue to load directly
         }
-      }
-
-      // Mark as loading and ensure we clear this flag in finally block
-      loadingTrackerRef.current[inProgressKey] = true;
-
-      try {
-        // Load from API with better error handling
-        const url = getTtsStreamUrl(text, selectedVoice, index);
-        console.log(`Fetching audio from URL for paragraph ${index}`);
-
-        // Create a timeout promise
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error("Audio loading timeout")), 10000);
-        });
-
-        // Safer loading with explicit error handling
-        let sound: Audio.Sound | null = null;
+      } else {
+        loadingTrackerRef.current[inProgressKey] = true;
+        // Now start the async load
         try {
-          const result = (await Promise.race([
-            Audio.Sound.createAsync(
-              {
-                uri: url,
-                headers: {
-                  Accept: "audio/mp3",
-                  "Cache-Control": "no-cache",
+          // Load from API with better error handling
+          const url = getTtsStreamUrl(text, selectedVoice, index);
+          console.log(`Fetching audio from URL for paragraph ${index}`);
+
+          // Create a timeout promise
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error("Audio loading timeout")), 10000);
+          });
+
+          // Safer loading with explicit error handling
+          let sound: Audio.Sound | null = null;
+          try {
+            const result = (await Promise.race([
+              Audio.Sound.createAsync(
+                {
+                  uri: url,
+                  headers: {
+                    Accept: "audio/mp3",
+                    "Cache-Control": "no-cache",
+                  },
                 },
-              },
-              { shouldPlay: false }
-            ),
-            timeoutPromise,
-          ])) as { sound: Audio.Sound };
+                { shouldPlay: false }
+              ),
+              timeoutPromise,
+            ])) as { sound: Audio.Sound };
 
-          sound = result.sound;
-        } catch (loadErr: any) {
-          console.error(`Error creating sound object: ${loadErr}`);
-          throw new Error(
-            `Failed to load audio: ${loadErr.message || "Unknown error"}`
-          );
+            sound = result.sound;
+          } catch (loadErr: any) {
+            console.error(`Error creating sound object: ${loadErr}`);
+            throw new Error(
+              `Failed to load audio: ${loadErr.message || "Unknown error"}`
+            );
+          }
+
+          if (!sound) {
+            throw new Error("Sound creation failed");
+          }
+
+          // Configure sound
+          try {
+            await sound.setRateAsync(playbackSpeed, true);
+            sound.setOnPlaybackStatusUpdate(onPlaybackStatusUpdate);
+          } catch (configErr) {
+            console.warn(`Error configuring sound: ${configErr}`);
+            // Continue anyway, these aren't critical failures
+          }
+
+          // Store in cache and current reference
+          audioCacheRef.current[cacheKey] = sound;
+          currentSound.current = sound;
+
+          console.log(`Successfully loaded audio for paragraph ${index}`);
+
+          return true;
+        } finally {
+          // Always clear loading flag
+          loadingTrackerRef.current[inProgressKey] = false;
         }
-
-        if (!sound) {
-          throw new Error("Sound creation failed");
-        }
-
-        // Configure sound
-        try {
-          await sound.setRateAsync(playbackSpeed, true);
-          sound.setOnPlaybackStatusUpdate(onPlaybackStatusUpdate);
-        } catch (configErr) {
-          console.warn(`Error configuring sound: ${configErr}`);
-          // Continue anyway, these aren't critical failures
-        }
-
-        // Store in cache and current reference
-        audioCacheRef.current[cacheKey] = sound;
-        currentSound.current = sound;
-
-        console.log(`Successfully loaded audio for paragraph ${index}`);
-
-        return true;
-      } finally {
-        // Always clear loading flag
-        loadingTrackerRef.current[inProgressKey] = false;
       }
     } catch (err: any) {
       console.error(`Error loading audio for paragraph ${index}:`, err);
