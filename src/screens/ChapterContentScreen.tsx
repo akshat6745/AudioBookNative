@@ -32,13 +32,24 @@ const ChapterContentScreen = () => {
     voice: DEFAULT_VOICE,
     playbackSpeed: 1
   });
+
+  // Dark theme colors
+  const backgroundColor = '#0A0A0A';
+  const cardBackground = '#1A1A1A';
+  const textColor = '#E8E8E8';
+  const subtleTextColor = '#888';
+  const primaryColor = '#4A9EFF';
+  const successBackground = '#1B2D1B';
+  const successTextColor = '#4CAF50';
+  const borderColor = '#333';
+  const shadowColor = '#000';
   const [showApiMonitor, setShowApiMonitor] = useState(false);
   const [parsedChapterInfo, setParsedChapterInfo] = useState<{
     chapterNumber: number;
     title: string;
     publishedTime: string;
   }>({ chapterNumber: 0, title: '', publishedTime: '' });
-  
+
   // Use ref to track last active paragraph index to prevent unnecessary scrolling
   const lastActiveIndexRef = useRef(-1);
 
@@ -52,7 +63,7 @@ const ChapterContentScreen = () => {
     try {
       // Format is typically: "91\nChapter 91 Escape\n2 years ago"
       const parts = rawTitle.split('\n');
-      
+
       if (parts.length >= 3) {
         // First part is the chapter number, second is the actual title, third is time
         return {
@@ -89,7 +100,7 @@ const ChapterContentScreen = () => {
     try {
       setLoading(true);
       const content = await fetchChapterContent(novel, chapter);
-      
+
       // Parse content properly - ensure it's an array before filtering
       let paragraphArray: string[] = [];
       if (typeof content === 'string') {
@@ -102,7 +113,7 @@ const ChapterContentScreen = () => {
           return typeof para === 'string' && para.trim().length > 0;
         });
       }
-      
+
       if (paragraphArray.length === 0) {
         setError('No readable content found in this chapter.');
       } else {
@@ -140,7 +151,7 @@ const ChapterContentScreen = () => {
 
     // Load current chapter content
     loadChapterContent(novelName, chapterNumber);
-    
+
     // Load all available chapters for navigation
     loadAllChapters();
   }, [navigation, novelName, chapterNumber, chapterTitle]);
@@ -164,20 +175,20 @@ const ChapterContentScreen = () => {
 
   const handleParagraphPress = (index: number) => {
     console.log(`Paragraph ${index} pressed`);
-    
+
     // Validate paragraph index
     if (index < 0 || index >= paragraphs.length) {
       console.warn(`Invalid paragraph index: ${index}`);
       return;
     }
-    
+
     // Validate paragraph text
     const paragraphText = paragraphs[index];
     if (!paragraphText || paragraphText.trim().length === 0) {
       console.warn(`Empty paragraph at index ${index}`);
       return;
     }
-    
+
     lastActiveIndexRef.current = index;
     setActiveParagraphIndex(index);
     setShowAudioPlayer(true);
@@ -185,17 +196,17 @@ const ChapterContentScreen = () => {
 
   const handleParagraphComplete = useCallback((newIndex: number) => {
     console.log(`Paragraph complete, moving to index ${newIndex}`);
-    
+
     // Validate new index
     if (newIndex < 0 || newIndex >= paragraphs.length) {
       console.warn(`Invalid next paragraph index: ${newIndex}`);
       return;
     }
-    
+
     // Only scroll if the index is different from our last scrolled position
     if (newIndex !== lastActiveIndexRef.current) {
       lastActiveIndexRef.current = newIndex;
-      
+
       // Use a small timeout to ensure the UI updates before scrolling
       setTimeout(() => {
         if (flatListRef.current && paragraphs.length > newIndex) {
@@ -212,42 +223,42 @@ const ChapterContentScreen = () => {
 
   const handleChapterComplete = useCallback(async () => {
     console.log('Chapter complete, checking for next chapter');
-    
+
     // Don't proceed if we're already loading a new chapter
     if (loadingNextChapter) return;
-    
+
     try {
       setLoadingNextChapter(true);
-      
+
       // Get all chapters if we don't have them yet
       let chapters = availableChapters;
       if (chapters.length === 0) {
         chapters = await loadAllChapters();
       }
-      
+
       // Find the current chapter index
       const currentChapterIndex = chapters.findIndex(c => c.chapterNumber === chapterNumber);
-      
+
       // Check if there's a next chapter
       if (currentChapterIndex >= 0 && currentChapterIndex < chapters.length - 1) {
         const nextChapter = chapters[currentChapterIndex + 1];
         console.log(`Loading next chapter: ${nextChapter.chapterNumber} - ${nextChapter.chapterTitle}`);
         console.log(`Preserving audio settings: Voice=${audioSettings.voice}, Speed=${audioSettings.playbackSpeed}`);
-        
+
         // Parse the title of the next chapter
         const parsedNextChapterInfo = parseChapterTitle(nextChapter.chapterTitle);
-        
+
         // Update navigation title first to give user feedback
         navigation.setOptions({
           title: `Chapter ${parsedNextChapterInfo.chapterNumber}`,
         });
-        
+
         // Update the parsed chapter info state
         setParsedChapterInfo(parsedNextChapterInfo);
-        
+
         // Load the content of the next chapter
         const nextContent = await fetchChapterContent(novelName, nextChapter.chapterNumber);
-        
+
         // Parse content properly
         let nextParagraphs: string[] = [];
         if (typeof nextContent === 'string') {
@@ -258,12 +269,12 @@ const ChapterContentScreen = () => {
             return typeof para === 'string' && para.trim().length > 0;
           });
         }
-        
+
         if (nextParagraphs.length === 0) {
           console.warn('Next chapter has no readable content');
           return;
         }
-        
+
         // Update route params to match the new chapter
         // This is a workaround as we can't directly modify route.params
         // @ts-ignore (we know this exists on the navigation object)
@@ -272,24 +283,24 @@ const ChapterContentScreen = () => {
           chapterNumber: nextChapter.chapterNumber,
           chapterTitle: nextChapter.chapterTitle,
         });
-        
+
         // Update state with new chapter content
         setParagraphs(nextParagraphs);
-        
+
         // Reset isPlaying state to ensure it's set to play mode
         const wasPlaying = true; // Always assume we want to continue playing
-        
+
         // Start playing from the beginning
         lastActiveIndexRef.current = 0;
-        
+
         // Important: Use a setTimeout to ensure the component has time to update before we trigger playback
         setTimeout(() => {
           // Set the active paragraph index which will trigger the audio to load
           setActiveParagraphIndex(0);
-          
+
           // This ensures the audio player remains visible
           setShowAudioPlayer(true);
-          
+
           // Scroll to top
           if (flatListRef.current) {
             flatListRef.current.scrollToOffset({ offset: 0, animated: true });
@@ -353,19 +364,21 @@ const ChapterContentScreen = () => {
 
   const renderParagraph = ({ item, index }: { item: string, index: number }) => {
     const isActive = index === activeParagraphIndex;
-    
+
     return (
       <TouchableOpacity
         style={[
           styles.paragraphItem,
-          isActive && styles.activeParagraphItem
+          { backgroundColor: cardBackground, shadowColor },
+          isActive && [styles.activeParagraphItem, { backgroundColor: successBackground, borderColor: primaryColor }]
         ]}
         onPress={() => handleParagraphPress(index)}
         activeOpacity={0.7}
       >
         <Text style={[
           styles.paragraphText,
-          isActive && styles.activeParagraphText
+          { color: textColor },
+          isActive && [styles.activeParagraphText, { color: successTextColor }]
         ]}>
           {item}
         </Text>
@@ -374,20 +387,20 @@ const ChapterContentScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor }]}>
       {/* Updated title display to match the format in the screenshot */}
       <View style={styles.chapterTitleContainer}>
-        <Text style={styles.chapterTitle}>{parsedChapterInfo.title}</Text>
-        <Text style={styles.publishedTime}>{parsedChapterInfo.publishedTime}</Text>
+        <Text style={[styles.chapterTitle, { color: textColor }]}>{parsedChapterInfo.title}</Text>
+        <Text style={[styles.publishedTime, { color: subtleTextColor }]}>{parsedChapterInfo.publishedTime}</Text>
       </View>
-      
+
       {/* Add the green chapter title card shown in the screenshot */}
-      <View style={styles.chapterTitleCard}>
-        <Text style={styles.chapterTitleCardText}>{parsedChapterInfo.title}</Text>
+      <View style={[styles.chapterTitleCard, { backgroundColor: successBackground, borderColor }]}>
+        <Text style={[styles.chapterTitleCardText, { color: successTextColor }]}>{parsedChapterInfo.title}</Text>
       </View>
 
       {loadingNextChapter && (
-        <Text style={styles.loadingNextChapter}>Loading next chapter...</Text>
+        <Text style={[styles.loadingNextChapter, { color: primaryColor }]}>Loading next chapter...</Text>
       )}
       <FlatList
         ref={flatListRef}
@@ -406,7 +419,7 @@ const ChapterContentScreen = () => {
                 index: Math.max(0, offset - 1),
                 animated: false
               });
-              
+
               // Then after a small delay, try the actual index
               setTimeout(() => {
                 if (flatListRef.current) {
@@ -424,7 +437,7 @@ const ChapterContentScreen = () => {
         maxToRenderPerBatch={10}
         updateCellsBatchingPeriod={50}
       />
-      
+
       <FloatingAudioPlayer
         paragraphs={paragraphs}
         initialParagraphIndex={activeParagraphIndex}
@@ -441,17 +454,17 @@ const ChapterContentScreen = () => {
 
       {/* Use absolute positioning for buttons */}
       {!showAudioPlayer && (
-        <TouchableOpacity 
-          style={styles.floatingButton} 
+        <TouchableOpacity
+          style={[styles.floatingButton, { backgroundColor: primaryColor, shadowColor }]}
           onPress={handlePlay}
         >
           <Ionicons name="play" size={24} color="#fff" />
         </TouchableOpacity>
       )}
-      
+
       {/* Debug button */}
-      <TouchableOpacity 
-        style={styles.debugButton} 
+      <TouchableOpacity
+        style={styles.debugButton}
         onPress={handleShowApiMonitor}
       >
         <Ionicons name="analytics-outline" size={20} color="#fff" />
@@ -471,7 +484,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: '#f5f5f5',
+    // backgroundColor will be set dynamically
   },
   contentContainer: {
     paddingBottom: 100, // Add padding to ensure content is not hidden behind the audio player
@@ -482,61 +495,61 @@ const styles = StyleSheet.create({
   chapterNumber: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#333',
+    // color will be set dynamically
   },
   chapterTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    // color will be set dynamically
     marginBottom: 4,
   },
   publishedTime: {
     fontSize: 16,
-    color: '#666',
+    // color will be set dynamically
     marginBottom: 16,
   },
   chapterTitleCard: {
-    backgroundColor: '#e6f7e6', // Light green background
+    // backgroundColor will be set dynamically
     padding: 16,
     borderRadius: 8,
     marginBottom: 20,
-    borderColor: '#c8e6c9',
+    // borderColor will be set dynamically
     borderWidth: 1,
   },
   chapterTitleCardText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#006400', // Dark green text
+    // color will be set dynamically
   },
   loadingNextChapter: {
-    color: '#007bff',
+    // color will be set dynamically
     textAlign: 'center',
     marginBottom: 10,
     fontWeight: 'bold',
   },
   paragraphItem: {
-    backgroundColor: 'white',
+    // backgroundColor will be set dynamically
     padding: 16,
     borderRadius: 8,
     marginBottom: 12,
     elevation: 2,
-    shadowColor: '#000',
+    // shadowColor will be set dynamically
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.22,
     shadowRadius: 2.22,
   },
   activeParagraphItem: {
-    backgroundColor: '#e6f7e6', // Light green background for active paragraph
-    borderColor: '#007bff',
+    // backgroundColor will be set dynamically
+    // borderColor will be set dynamically
     borderWidth: 1,
   },
   paragraphText: {
     fontSize: 16,
     lineHeight: 24,
-    color: '#333',
+    // color will be set dynamically
   },
   activeParagraphText: {
-    color: '#006400', // Darker green for text
+    // color will be set dynamically
     fontWeight: '500',
   },
   footerContainer: {
@@ -553,13 +566,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 20,
     right: 20,
-    backgroundColor: '#007bff',
+    // backgroundColor will be set dynamically
     width: 56,
-    height: 56, 
+    height: 56,
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
+    // shadowColor will be set dynamically
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 3,

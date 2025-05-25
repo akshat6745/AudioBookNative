@@ -2,15 +2,15 @@ import { FontAwesome5 } from "@expo/vector-icons";
 import { Audio } from "expo-av";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Animated,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Animated,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { getTtsStreamUrl } from "../services/api";
 import { DEFAULT_VOICE } from "../utils/config";
@@ -87,6 +87,16 @@ const FloatingAudioPlayer = ({
   const [selectedVoice, setSelectedVoice] = useState(
     propSelectedVoice || DEFAULT_VOICE
   );
+
+  // Dark theme colors
+  const backgroundColor = '#1A1A1A';
+  const textColor = '#E8E8E8';
+  const primaryColor = '#4A9EFF';
+  const secondaryBackground = '#2A2A2A';
+  const errorBackground = '#2D1B1B';
+  const errorTextColor = '#FF6B6B';
+  const warningTextColor = '#FFB347';
+  const shadowColor = '#000';
   const [playbackSpeed, setPlaybackSpeed] = useState(propPlaybackSpeed || 1);
   const [showVoiceDropdown, setShowVoiceDropdown] = useState(false);
   const [showSpeedDropdown, setShowSpeedDropdown] = useState(false);
@@ -1211,32 +1221,33 @@ const FloatingAudioPlayer = ({
         onRequestClose={onClose}
       >
         <Pressable style={styles.modalOverlay} onPress={onClose}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>{title}</Text>
+          <View style={[styles.modalContainer, { backgroundColor }]}>
+            <Text style={[styles.modalTitle, { color: textColor }]}>{title}</Text>
             <ScrollView style={styles.optionsScrollView} contentContainerStyle={styles.optionsContainer}>
               {options.map((option) => (
                 <TouchableOpacity
                   key={option.value}
                   style={[
                     styles.optionItem,
+                    { backgroundColor: secondaryBackground },
                     option.value ===
                       (title.includes("Voice")
                         ? selectedVoice
-                        : playbackSpeed) && styles.selectedOption,
+                        : playbackSpeed) && [styles.selectedOption, { backgroundColor: primaryColor + '20', borderColor: primaryColor }],
                   ]}
                   onPress={() => onSelect(option.value)}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.optionText}>{option.label}</Text>
+                  <Text style={[styles.optionText, { color: textColor }]}>{option.label}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
             <TouchableOpacity
-              style={styles.closeButton}
+              style={[styles.closeButton, { backgroundColor: secondaryBackground }]}
               onPress={onClose}
               activeOpacity={0.7}
             >
-              <Text style={styles.closeButtonText}>Close</Text>
+              <Text style={[styles.closeButtonText, { color: textColor }]}>Close</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -1353,18 +1364,18 @@ const FloatingAudioPlayer = ({
 
   return (
     <Animated.View
-      style={[styles.container, { transform: [{ translateY: slideAnim }] }]}
+      style={[styles.container, { backgroundColor, shadowColor, transform: [{ translateY: slideAnim }] }]}
     >
       <View style={styles.header}>
         <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-          <FontAwesome5 name="times" size={24} color="#333" solid />
+          <FontAwesome5 name="times" size={24} color={textColor} solid />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Now Playing</Text>
+        <Text style={[styles.headerTitle, { color: textColor }]}>Now Playing</Text>
       </View>
 
       {isLastParagraph && (
         <View style={styles.chapterStatusContainer}>
-          <Text style={styles.lastParagraphText}>
+          <Text style={[styles.lastParagraphText, { color: warningTextColor }]}>
             Last paragraph in this chapter
           </Text>
         </View>
@@ -1375,7 +1386,7 @@ const FloatingAudioPlayer = ({
         <View style={styles.settingsContainer}>
           {/* Voice Dropdown */}
           <TouchableOpacity
-            style={styles.dropdownButton}
+            style={[styles.dropdownButton, { backgroundColor: secondaryBackground, shadowColor }]}
             onPress={() => {
               setShowVoiceDropdown(true);
               setShowSpeedDropdown(false);
@@ -1384,23 +1395,23 @@ const FloatingAudioPlayer = ({
             <FontAwesome5
               name="user"
               size={18}
-              color="#007bff"
+              color={primaryColor}
               style={styles.buttonIcon}
               solid
             />
-            <Text style={styles.dropdownButtonText}>
+            <Text style={[styles.dropdownButtonText, { color: primaryColor }]}>
               {
                 VOICE_OPTIONS.find(
                   (v) => v.value === selectedVoice
                 )?.label.split(" ")[0]
               }
             </Text>
-            <FontAwesome5 name="chevron-down" size={18} color="#007bff" solid />
+            <FontAwesome5 name="chevron-down" size={18} color={primaryColor} solid />
           </TouchableOpacity>
 
           {/* Speed Dropdown */}
           <TouchableOpacity
-            style={styles.dropdownButton}
+            style={[styles.dropdownButton, { backgroundColor: secondaryBackground, shadowColor }]}
             onPress={() => {
               setShowSpeedDropdown(true);
               setShowVoiceDropdown(false);
@@ -1409,14 +1420,14 @@ const FloatingAudioPlayer = ({
             <FontAwesome5
               name="tachometer-alt"
               size={18}
-              color="#007bff"
+              color={primaryColor}
               style={styles.buttonIcon}
               solid
             />
-            <Text style={styles.dropdownButtonText}>
+            <Text style={[styles.dropdownButtonText, { color: primaryColor }]}>
               {SPEED_OPTIONS.find((s) => s.value === playbackSpeed)?.label}
             </Text>
-            <FontAwesome5 name="chevron-down" size={18} color="#007bff" solid />
+            <FontAwesome5 name="chevron-down" size={18} color={primaryColor} solid />
           </TouchableOpacity>
         </View>
 
@@ -1431,7 +1442,7 @@ const FloatingAudioPlayer = ({
             onPress={handleRestart}
             activeOpacity={0.7}
           >
-            <FontAwesome5 name="redo" size={18} color="#333" solid />
+            <FontAwesome5 name="redo" size={18} color={primaryColor} solid />
           </TouchableOpacity>
 
           {/* Play/Pause Button */}
@@ -1471,7 +1482,7 @@ const FloatingAudioPlayer = ({
               name="step-forward"
               size={18}
               color={
-                initialParagraphIndex < paragraphs.length - 1 ? "#333" : "#999"
+                initialParagraphIndex < paragraphs.length - 1 ? primaryColor : "#666"
               }
               solid
             />
@@ -1499,15 +1510,15 @@ const FloatingAudioPlayer = ({
 
       {loading && (
         <View style={styles.loadingIndicator}>
-          <Text>Loading audio...</Text>
+          <Text style={{ color: textColor }}>Loading audio...</Text>
         </View>
       )}
 
       {error && (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
+        <View style={[styles.errorContainer, { backgroundColor: errorBackground }]}>
+          <Text style={[styles.errorText, { color: errorTextColor }]}>{error}</Text>
           <TouchableOpacity
-            style={styles.retryButton}
+            style={[styles.retryButton, { backgroundColor: errorTextColor, shadowColor }]}
             onPress={handleRetry}
             activeOpacity={0.7}
           >
@@ -1525,13 +1536,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "white",
+    // backgroundColor will be set dynamically
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 16,
     paddingBottom: Platform.OS === "ios" ? 30 : 16, // Add extra padding at bottom for iOS
     elevation: 5,
-    shadowColor: "#000",
+    // shadowColor will be set dynamically
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
@@ -1546,7 +1557,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 15,
     fontWeight: "bold",
-    color: "#333",
+    // color will be set dynamically
   },
   closeBtn: {
     position: "absolute",
@@ -1565,12 +1576,12 @@ const styles = StyleSheet.create({
   dropdownButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f0f0f0",
+    // backgroundColor will be set dynamically
     borderRadius: 16,
     paddingHorizontal: 8,
     paddingVertical: 6,
     marginHorizontal: 4,
-    shadowColor: "#000",
+    // shadowColor will be set dynamically
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 1.5,
@@ -1580,7 +1591,7 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   dropdownButtonText: {
-    color: "#007bff",
+    // color will be set dynamically
     marginRight: 2,
     fontSize: 12,
   },
@@ -1608,14 +1619,14 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   playButton: {
-    backgroundColor: "#007bff",
+    // backgroundColor will be set dynamically
     width: 34,
     height: 34,
     borderRadius: 17,
     justifyContent: "center",
     alignItems: "center",
     marginHorizontal: 4,
-    shadowColor: "#007bff",
+    // shadowColor will be set dynamically
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.3,
     shadowRadius: 1,
@@ -1633,7 +1644,7 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     width: "80%",
-    backgroundColor: "white",
+    // backgroundColor will be set dynamically
     borderRadius: 12,
     padding: 20,
     maxHeight: "80%",
@@ -1641,7 +1652,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#333",
+    // color will be set dynamically
     textAlign: "center",
     marginBottom: 15,
   },
@@ -1660,17 +1671,17 @@ const styles = StyleSheet.create({
     }),
   },
   selectedOption: {
-    backgroundColor: "#e6f2ff",
-    borderColor: "#007bff",
+    // backgroundColor will be set dynamically
+    // borderColor will be set dynamically
     borderWidth: 1,
   },
   optionText: {
     fontSize: 16,
-    color: "#333",
+    // color will be set dynamically
   },
   closeButton: {
     padding: 12,
-    backgroundColor: "#f0f0f0",
+    // backgroundColor will be set dynamically
     borderRadius: 8,
     alignItems: "center",
     ...Platform.select({
@@ -1685,7 +1696,7 @@ const styles = StyleSheet.create({
   },
   closeButtonText: {
     fontSize: 16,
-    color: "#333",
+    // color will be set dynamically
     fontWeight: "bold",
   },
   loadingIndicator: {
@@ -1695,21 +1706,21 @@ const styles = StyleSheet.create({
   errorContainer: {
     padding: 12,
     alignItems: "center",
-    backgroundColor: "#ffebee",
+    // backgroundColor will be set dynamically
     borderRadius: 8,
     margin: 10,
   },
   errorText: {
-    color: "#d32f2f",
+    // color will be set dynamically
     marginBottom: 8,
     fontSize: 15,
   },
   retryButton: {
     padding: 10,
     paddingHorizontal: 20,
-    backgroundColor: "#d32f2f",
+    // backgroundColor will be set dynamically
     borderRadius: 6,
-    shadowColor: "#000",
+    // shadowColor will be set dynamically
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 1.5,
@@ -1726,7 +1737,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   lastParagraphText: {
-    color: "#ff8800",
+    // color will be set dynamically
     fontWeight: "bold",
     fontSize: 14,
   },

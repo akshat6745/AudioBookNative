@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import React, { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import ErrorDisplay from '../components/ErrorDisplay';
+import Loading from '../components/Loading';
 import { fetchChapters } from '../services/api';
 import { Chapter, PaginatedChapters, RootStackParamList } from '../types';
-import Loading from '../components/Loading';
-import ErrorDisplay from '../components/ErrorDisplay';
-import { Ionicons } from '@expo/vector-icons';
 
 type ChaptersScreenRouteProp = RouteProp<RootStackParamList, 'Chapters'>;
 type ChaptersScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Chapters'>;
@@ -21,10 +21,23 @@ const ChaptersScreen = () => {
   const [error, setError] = useState<string | null>(null);
   const [lastReadChapter, setLastReadChapter] = useState<number | null>(null);
   const [latestChapter, setLatestChapter] = useState<Chapter | null>(null);
-  
+
   const route = useRoute<ChaptersScreenRouteProp>();
   const navigation = useNavigation<ChaptersScreenNavigationProp>();
   const { novelName, lastChapter } = route.params;
+
+  // Dark theme colors
+  const backgroundColor = '#0A0A0A';
+  const cardBackground = '#1A1A1A';
+  const textColor = '#E8E8E8';
+  const subtleTextColor = '#888';
+  const primaryColor = '#4A9EFF';
+  const successBackground = '#1B2D1B';
+  const successTextColor = '#4CAF50';
+  const infoBackground = '#1B2A2D';
+  const borderColor = '#333';
+  const shadowColor = '#000';
+  const secondaryBackground = '#2A2A2A';
 
   // If lastChapter is passed through navigation params, use it
   useEffect(() => {
@@ -37,14 +50,14 @@ const ChaptersScreen = () => {
     try {
       setLoading(true);
       const data = await fetchChapters(novelName, page);
-      
+
       // Extract the latest chapter (first chapter in the first page)
       if (page === 1 && data.chapters.length > 0) {
         // Check if the first chapter has the highest chapter number (indicating it's the newest)
         const possibleLatest = [...data.chapters].sort((a, b) => b.chapterNumber - a.chapterNumber)[0];
         setLatestChapter(possibleLatest);
       }
-      
+
       setChaptersData(data);
       setError(null);
     } catch (err) {
@@ -66,7 +79,7 @@ const ChaptersScreen = () => {
   const handleChapterPress = (chapter: Chapter) => {
     // Update last read chapter
     setLastReadChapter(chapter.chapterNumber);
-    
+
     navigation.navigate('ChapterContent', {
       novelName,
       chapterNumber: chapter.chapterNumber,
@@ -82,58 +95,60 @@ const ChaptersScreen = () => {
 
   const renderPaginationControls = () => {
     if (chaptersData.totalPages <= 1) return null;
-    
+
     const currentPage = chaptersData.currentPage;
     const totalPages = chaptersData.totalPages;
-    
+
     // Generate page numbers to show (current, prev, next, first, last, and some neighbors)
     let pageNumbers: number[] = [currentPage];
-    
+
     // Always add first and last pages
     if (currentPage > 1) pageNumbers.push(1);
     if (currentPage < totalPages) pageNumbers.push(totalPages);
-    
+
     // Add some neighbors if we have pages between
     if (currentPage > 2) pageNumbers.push(currentPage - 1);
     if (currentPage < totalPages - 1) pageNumbers.push(currentPage + 1);
-    
+
     // Add additional neighbors
     if (currentPage > 3) pageNumbers.push(currentPage - 2);
     if (currentPage < totalPages - 2) pageNumbers.push(currentPage + 2);
-    
+
     // Sort and deduplicate
     pageNumbers = [...new Set(pageNumbers)].sort((a, b) => a - b);
-    
+
     return (
       <View style={styles.paginationControlsContainer}>
-        <TouchableOpacity 
-          style={[styles.paginationButton, currentPage === 1 && styles.paginationButtonDisabled]} 
+        <TouchableOpacity
+          style={[styles.paginationButton, { borderColor: primaryColor }, currentPage === 1 && [styles.paginationButtonDisabled, { borderColor: subtleTextColor }]]}
           onPress={() => goToPage(currentPage - 1)}
           disabled={currentPage === 1}
         >
-          <Ionicons name="chevron-back" size={18} color={currentPage === 1 ? "#ccc" : "#007bff"} />
+          <Ionicons name="chevron-back" size={18} color={currentPage === 1 ? subtleTextColor : primaryColor} />
         </TouchableOpacity>
-        
+
         <View style={styles.pageNumbersContainer}>
           {pageNumbers.map((page, index) => {
             // Check if we need to render ellipsis
             const prevPage = pageNumbers[index - 1];
             const showLeftEllipsis = prevPage && page - prevPage > 1;
-            
+
             return (
               <React.Fragment key={`page-${page}`}>
                 {showLeftEllipsis && (
-                  <Text style={styles.ellipsis}>...</Text>
+                  <Text style={[styles.ellipsis, { color: subtleTextColor }]}>...</Text>
                 )}
                 <TouchableOpacity
                   style={[
                     styles.pageNumberButton,
-                    currentPage === page && styles.currentPageButton
+                    { backgroundColor: secondaryBackground },
+                    currentPage === page && [styles.currentPageButton, { backgroundColor: primaryColor }]
                   ]}
                   onPress={() => goToPage(page)}
                 >
                   <Text style={[
                     styles.pageNumberText,
+                    { color: textColor },
                     currentPage === page && styles.currentPageText
                   ]}>
                     {page}
@@ -143,13 +158,13 @@ const ChaptersScreen = () => {
             );
           })}
         </View>
-        
-        <TouchableOpacity 
-          style={[styles.paginationButton, currentPage === totalPages && styles.paginationButtonDisabled]} 
+
+        <TouchableOpacity
+          style={[styles.paginationButton, { borderColor: primaryColor }, currentPage === totalPages && [styles.paginationButtonDisabled, { borderColor: subtleTextColor }]]}
           onPress={() => goToPage(currentPage + 1)}
           disabled={currentPage === totalPages}
         >
-          <Ionicons name="chevron-forward" size={18} color={currentPage === totalPages ? "#ccc" : "#007bff"} />
+          <Ionicons name="chevron-forward" size={18} color={currentPage === totalPages ? subtleTextColor : primaryColor} />
         </TouchableOpacity>
       </View>
     );
@@ -160,7 +175,7 @@ const ChaptersScreen = () => {
     try {
       // Format is typically: "91\nChapter 91 Escape\n2 years ago"
       const parts = rawTitle.split('\n');
-      
+
       if (parts.length >= 3) {
         // First part is the chapter number, second is the actual title, third is time
         return {
@@ -191,29 +206,29 @@ const ChaptersScreen = () => {
 
   const renderLatestChapter = () => {
     if (!latestChapter) return null;
-    
+
     const { title, publishedTime } = parseChapterTitle(latestChapter.chapterTitle);
-    
+
     return (
-      <View style={styles.latestChapterContainer}>
-        <View style={styles.latestChapterHeader}>
+      <View style={[styles.latestChapterContainer, { backgroundColor: cardBackground, shadowColor }]}>
+        <View style={[styles.latestChapterHeader, { backgroundColor: primaryColor }]}>
           <Text style={styles.latestChapterHeaderText}>Latest Chapter</Text>
           <View style={styles.newTag}>
             <Text style={styles.newTagText}>NEW</Text>
           </View>
         </View>
-        
+
         <TouchableOpacity
           style={styles.latestChapterCard}
           onPress={() => handleChapterPress(latestChapter)}
         >
           <View style={styles.chapterItemContent}>
-            <Text style={styles.chapterMainTitle}>{title}</Text>
-            <Text style={styles.chapterDetailDate}>{publishedTime}</Text>
+            <Text style={[styles.chapterMainTitle, { color: textColor }]}>{title}</Text>
+            <Text style={[styles.chapterDetailDate, { color: subtleTextColor }]}>{publishedTime}</Text>
           </View>
           <View style={styles.latestChapterAction}>
-            <Ionicons name="book" size={24} color="#007bff" />
-            <Text style={styles.readNowText}>Read Now</Text>
+            <Ionicons name="book" size={24} color={primaryColor} />
+            <Text style={[styles.readNowText, { color: primaryColor }]}>Read Now</Text>
           </View>
         </TouchableOpacity>
       </View>
@@ -229,20 +244,20 @@ const ChaptersScreen = () => {
   }
 
   // Filter out the latest chapter from the regular chapter list if it's being featured
-  const regularChapters = latestChapter 
+  const regularChapters = latestChapter
     ? chaptersData.chapters.filter(c => c.chapterNumber !== latestChapter.chapterNumber)
     : chaptersData.chapters;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor }]}>
       <ScrollView style={styles.scrollContainer}>
-        <Text style={styles.title}>{novelName}</Text>
-        
+        <Text style={[styles.title, { color: textColor }]}>{novelName}</Text>
+
         {renderLatestChapter()}
-        
+
         {lastReadChapter && (
-          <TouchableOpacity 
-            style={styles.resumeContainer}
+          <TouchableOpacity
+            style={[styles.resumeContainer, { backgroundColor: infoBackground, borderColor: primaryColor }]}
             onPress={() => {
               const lastChapter = chaptersData.chapters.find(c => c.chapterNumber === lastReadChapter);
               if (lastChapter) {
@@ -250,59 +265,60 @@ const ChaptersScreen = () => {
               }
             }}
           >
-            <Ionicons name="play-circle" size={24} color="#007bff" />
-            <Text style={styles.resumeText}>
+            <Ionicons name="play-circle" size={24} color={primaryColor} />
+            <Text style={[styles.resumeText, { color: primaryColor }]}>
               Resume Chapter {lastReadChapter}
             </Text>
           </TouchableOpacity>
         )}
-        
-        <View style={styles.chapterListContainer}>
+
+        <View style={[styles.chapterListContainer, { backgroundColor: cardBackground, shadowColor }]}>
           <View style={styles.chapterListHeader}>
-            <Text style={styles.chapterListTitle}>All Chapters</Text>
-            <View style={styles.chapterCountBadge}>
-              <Text style={styles.chapterCountText}>
+            <Text style={[styles.chapterListTitle, { color: textColor }]}>All Chapters</Text>
+            <View style={[styles.chapterCountBadge, { backgroundColor: secondaryBackground }]}>
+              <Text style={[styles.chapterCountText, { color: subtleTextColor }]}>
                 {chaptersData.chapters.length} chapters
               </Text>
             </View>
           </View>
-          
+
           {chaptersData.totalPages > 1 && (
-            <View style={styles.paginationInfo}>
-              <Text style={styles.paginationText}>
+            <View style={[styles.paginationInfo, { backgroundColor: secondaryBackground }]}>
+              <Text style={[styles.paginationText, { color: subtleTextColor }]}>
                 Page {chaptersData.currentPage} of {chaptersData.totalPages}
               </Text>
             </View>
           )}
-          
+
           {renderPaginationControls()}
-          
+
           {regularChapters.map((item) => {
             const { title, publishedTime } = parseChapterTitle(item.chapterTitle);
-            
+
             return (
               <TouchableOpacity
                 key={`chapter-${item.chapterNumber}`}
                 style={[
                   styles.chapterItem,
-                  lastReadChapter === item.chapterNumber && styles.lastReadChapterItem
+                  { backgroundColor: cardBackground, borderColor },
+                  lastReadChapter === item.chapterNumber && [styles.lastReadChapterItem, { backgroundColor: infoBackground, borderColor: primaryColor }]
                 ]}
                 onPress={() => handleChapterPress(item)}
               >
                 <View style={styles.chapterItemContent}>
-                  <Text style={styles.chapterMainTitle}>{title}</Text>
-                  <Text style={styles.chapterDetailDate}>{publishedTime}</Text>
+                  <Text style={[styles.chapterMainTitle, { color: textColor }]}>{title}</Text>
+                  <Text style={[styles.chapterDetailDate, { color: subtleTextColor }]}>{publishedTime}</Text>
                 </View>
-                <Ionicons 
-                  name="chevron-forward" 
-                  size={20} 
-                  color="#888" 
-                  style={styles.chapterItemIcon} 
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={subtleTextColor}
+                  style={styles.chapterItemIcon}
                 />
               </TouchableOpacity>
             );
           })}
-          
+
           {renderPaginationControls()}
         </View>
       </ScrollView>
@@ -313,7 +329,7 @@ const ChaptersScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    // backgroundColor will be set dynamically
   },
   scrollContainer: {
     flex: 1,
@@ -323,13 +339,13 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     marginBottom: 16,
-    color: '#333',
+    // color will be set dynamically
   },
   latestChapterContainer: {
     marginBottom: 24,
     borderRadius: 12,
-    backgroundColor: 'white',
-    shadowColor: '#000',
+    // backgroundColor will be set dynamically
+    // shadowColor will be set dynamically
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1,
     shadowRadius: 6,
@@ -339,7 +355,7 @@ const styles = StyleSheet.create({
   latestChapterHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#007bff',
+    // backgroundColor will be set dynamically
     padding: 12,
   },
   latestChapterHeaderText: {
@@ -371,16 +387,16 @@ const styles = StyleSheet.create({
   chapterHeader: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    // color will be set dynamically
   },
   latestChapterTitle: {
     fontSize: 16,
-    color: '#555',
+    // color will be set dynamically
     marginTop: 4,
   },
   chapterDate: {
     fontSize: 14,
-    color: '#888',
+    // color will be set dynamically
     marginTop: 4,
   },
   latestChapterAction: {
@@ -389,16 +405,16 @@ const styles = StyleSheet.create({
     marginLeft: 16,
   },
   readNowText: {
-    color: '#007bff',
+    // color will be set dynamically
     fontSize: 12,
     fontWeight: '500',
     marginTop: 4,
   },
   chapterListContainer: {
-    backgroundColor: 'white',
+    // backgroundColor will be set dynamically
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
+    // shadowColor will be set dynamically
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -412,29 +428,29 @@ const styles = StyleSheet.create({
   chapterListTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    // color will be set dynamically
   },
   chapterCountBadge: {
-    backgroundColor: '#f0f0f0',
+    // backgroundColor will be set dynamically
     borderRadius: 16,
     paddingHorizontal: 10,
     paddingVertical: 4,
     marginLeft: 12,
   },
   chapterCountText: {
-    color: '#666',
+    // color will be set dynamically
     fontSize: 12,
     fontWeight: '500',
   },
   paginationInfo: {
-    backgroundColor: '#f8f8f8',
+    // backgroundColor will be set dynamically
     padding: 8,
     borderRadius: 8,
     marginBottom: 12,
     alignItems: 'center',
   },
   paginationText: {
-    color: '#666',
+    // color will be set dynamically
     fontWeight: '500',
     textAlign: 'center',
   },
@@ -448,12 +464,12 @@ const styles = StyleSheet.create({
   paginationButton: {
     padding: 8,
     borderWidth: 1,
-    borderColor: '#007bff',
+    // borderColor will be set dynamically
     borderRadius: 4,
     marginHorizontal: 4,
   },
   paginationButtonDisabled: {
-    borderColor: '#ccc',
+    // borderColor will be set dynamically
   },
   pageNumbersContainer: {
     flexDirection: 'row',
@@ -466,16 +482,16 @@ const styles = StyleSheet.create({
     minWidth: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#f0f0f0',
+    // backgroundColor will be set dynamically
     justifyContent: 'center',
     alignItems: 'center',
     margin: 4,
   },
   currentPageButton: {
-    backgroundColor: '#007bff',
+    // backgroundColor will be set dynamically
   },
   pageNumberText: {
-    color: '#333',
+    // color will be set dynamically
     fontSize: 14,
     fontWeight: '500',
   },
@@ -483,33 +499,33 @@ const styles = StyleSheet.create({
     color: 'white',
   },
   ellipsis: {
-    color: '#666',
+    // color will be set dynamically
     marginHorizontal: 4,
   },
   resumeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#e6f7ff',
+    // backgroundColor will be set dynamically
     padding: 16,
     borderRadius: 8,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#007bff',
+    // borderColor will be set dynamically
   },
   resumeText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#007bff',
+    // color will be set dynamically
     marginLeft: 8,
   },
   chapterItem: {
-    backgroundColor: 'white',
+    // backgroundColor will be set dynamically
     padding: 16,
     paddingVertical: 20,
     borderRadius: 8,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#eee',
+    // borderColor will be set dynamically
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -521,31 +537,31 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   lastReadChapterItem: {
-    backgroundColor: '#f0f7ff',
+    // backgroundColor will be set dynamically
     borderWidth: 1,
-    borderColor: '#c0d8ff',
+    // borderColor will be set dynamically
     borderLeftWidth: 4,
-    borderLeftColor: '#007bff',
+    // borderLeftColor will be set dynamically
   },
   chapterMainTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    // color will be set dynamically
     marginBottom: 8,
   },
   chapterDetailNumber: {
     fontSize: 15,
-    color: '#555',
+    // color will be set dynamically
   },
   chapterDetailTitle: {
     fontSize: 15,
-    color: '#555',
+    // color will be set dynamically
   },
   chapterDetailDate: {
     fontSize: 14,
-    color: '#888',
+    // color will be set dynamically
     marginTop: 2,
   },
 });
 
-export default ChaptersScreen; 
+export default ChaptersScreen;

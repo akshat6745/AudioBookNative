@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface ErrorDisplayProps {
   message: string;
@@ -7,16 +7,21 @@ interface ErrorDisplayProps {
   retryText?: string;
 }
 
-const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ 
-  message, 
-  onRetry, 
+const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
+  message,
+  onRetry,
   retryText = 'Retry'
 }) => {
+  // Dark theme colors
+  const backgroundColor = '#0A0A0A';
+  const errorTextColor = '#FF6B6B';
+  const primaryColor = '#4A9EFF';
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.errorText}>{message}</Text>
+    <View style={[styles.container, { backgroundColor }]}>
+      <Text style={[styles.errorText, { color: errorTextColor }]}>{message}</Text>
       {onRetry && (
-        <TouchableOpacity style={styles.button} onPress={onRetry}>
+        <TouchableOpacity style={[styles.button, { backgroundColor: primaryColor }]} onPress={onRetry}>
           <Text style={styles.buttonText}>{retryText}</Text>
         </TouchableOpacity>
       )}
@@ -30,16 +35,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
+    // backgroundColor will be set dynamically
   },
   errorText: {
-    color: 'red',
+    // color will be set dynamically
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 20,
   },
   button: {
     padding: 12,
-    backgroundColor: '#007bff',
+    // backgroundColor will be set dynamically
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
@@ -52,4 +58,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ErrorDisplay; 
+export default ErrorDisplay;
