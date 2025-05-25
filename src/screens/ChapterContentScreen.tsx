@@ -230,44 +230,16 @@ const ChapterContentScreen = () => {
     try {
       setLoadingNextChapter(true);
 
-      // Get all chapters if we don't have them yet
-      let chapters = availableChapters;
-      if (chapters.length === 0) {
-        chapters = await loadAllChapters();
-      }
-
-      // Find the current chapter index
-      const currentChapterIndex = chapters.findIndex(c => c.chapterNumber === chapterNumber);
-
-      // Check if there's a next chapter
-      if (currentChapterIndex >= 0 && currentChapterIndex < chapters.length - 1) {
-        const nextChapter = chapters[currentChapterIndex + 1];
-        console.log(`Loading next chapter: ${nextChapter.chapterNumber} - ${nextChapter.chapterTitle}`);
-        console.log(`Preserving audio settings: Voice=${audioSettings.voice}, Speed=${audioSettings.playbackSpeed}`);
-
-        // Parse the title of the next chapter
-        const parsedNextChapterInfo = parseChapterTitle(nextChapter.chapterTitle);
-
-        // Update navigation title first to give user feedback
-        navigation.setOptions({
-          title: `Chapter ${parsedNextChapterInfo.chapterNumber}`,
-        });
-
-        // Update the parsed chapter info state
-        setParsedChapterInfo(parsedNextChapterInfo);
-
-        // Load the content of the next chapter
-        const nextContent = await fetchChapterContent(novelName, nextChapter.chapterNumber);
+      const nextChapterNumber = chapterNumber + 1;
+      try {
+        const nextContent = await fetchChapterContent(novelName, nextChapterNumber);
 
         // Parse content properly
         let nextParagraphs: string[] = [];
         if (typeof nextContent === 'string') {
           nextParagraphs = nextContent.split('\n\n').filter(para => para.trim().length > 0);
         } else if (Array.isArray(nextContent)) {
-          // Use type assertion for array filtering
-          nextParagraphs = (nextContent as any[]).filter((para: any) => {
-            return typeof para === 'string' && para.trim().length > 0;
-          });
+          nextParagraphs = (nextContent as any[]).filter((para: any) => typeof para === 'string' && para.trim().length > 0);
         }
 
         if (nextParagraphs.length === 0) {
@@ -275,13 +247,23 @@ const ChapterContentScreen = () => {
           return;
         }
 
+        // Update navigation title first to give user feedback
+        navigation.setOptions({
+          title: `Chapter ${nextChapterNumber}`,
+        });
+
+        // Update the parsed chapter info state
+        setParsedChapterInfo({
+          chapterNumber: nextChapterNumber,
+          title: `Chapter ${nextChapterNumber}`,
+          publishedTime: ''
+        });
+
         // Update route params to match the new chapter
-        // This is a workaround as we can't directly modify route.params
-        // @ts-ignore (we know this exists on the navigation object)
         navigation.setParams({
           novelName,
-          chapterNumber: nextChapter.chapterNumber,
-          chapterTitle: nextChapter.chapterTitle,
+          chapterNumber: nextChapterNumber,
+          chapterTitle: `Chapter ${nextChapterNumber}`,
         });
 
         // Update state with new chapter content
@@ -306,7 +288,7 @@ const ChapterContentScreen = () => {
             flatListRef.current.scrollToOffset({ offset: 0, animated: true });
           }
         }, 100);
-      } else {
+      } catch (err) {
         console.log('No more chapters available');
       }
     } catch (err) {
@@ -314,7 +296,7 @@ const ChapterContentScreen = () => {
     } finally {
       setLoadingNextChapter(false);
     }
-  }, [novelName, chapterNumber, availableChapters, navigation, loadingNextChapter, audioSettings]);
+  }, [novelName, chapterNumber, navigation, loadingNextChapter, audioSettings]);
 
   const handleCloseAudioPlayer = () => {
     setShowAudioPlayer(false);
