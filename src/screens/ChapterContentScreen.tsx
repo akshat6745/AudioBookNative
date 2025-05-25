@@ -32,6 +32,7 @@ const ChapterContentScreen = () => {
     voice: DEFAULT_VOICE,
     playbackSpeed: 1
   });
+  const [latestChapterNumber, setLatestChapterNumber] = useState<number | null>(null);
 
   // Dark theme colors
   const backgroundColor = '#0A0A0A';
@@ -132,6 +133,9 @@ const ChapterContentScreen = () => {
     try {
       const paginated = await fetchChapters(novelName);
       setAvailableChapters(paginated.chapters);
+      if (paginated.chapters.length > 0) {
+        setLatestChapterNumber(paginated.chapters[0].chapterNumber);
+      }
       return paginated.chapters;
     } catch (err) {
       console.error('Error loading all chapters:', err);
@@ -227,6 +231,12 @@ const ChapterContentScreen = () => {
     // Don't proceed if we're already loading a new chapter
     if (loadingNextChapter) return;
 
+    // Prevent advancing past the latest chapter
+    if (latestChapterNumber !== null && chapterNumber >= latestChapterNumber) {
+      console.log('Already at the latest chapter. No more chapters available.');
+      return;
+    }
+
     try {
       setLoadingNextChapter(true);
 
@@ -296,7 +306,7 @@ const ChapterContentScreen = () => {
     } finally {
       setLoadingNextChapter(false);
     }
-  }, [novelName, chapterNumber, navigation, loadingNextChapter, audioSettings]);
+  }, [novelName, chapterNumber, navigation, loadingNextChapter, audioSettings, latestChapterNumber]);
 
   const handleCloseAudioPlayer = () => {
     setShowAudioPlayer(false);
