@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import ErrorDisplay from '../components/ErrorDisplay';
 import Loading from '../components/Loading';
 import { fetchChapters } from '../services/api';
@@ -21,6 +21,7 @@ const ChaptersScreen = () => {
   const [error, setError] = useState<string | null>(null);
   const [lastReadChapter, setLastReadChapter] = useState<number | null>(null);
   const [latestChapter, setLatestChapter] = useState<Chapter | null>(null);
+  const [gotoPage, setGotoPage] = useState('');
 
   const route = useRoute<ChaptersScreenRouteProp>();
   const navigation = useNavigation<ChaptersScreenNavigationProp>();
@@ -271,6 +272,46 @@ const ChaptersScreen = () => {
             </Text>
           </TouchableOpacity>
         )}
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+          <TextInput
+            style={{
+              backgroundColor: secondaryBackground,
+              color: textColor,
+              borderRadius: 8,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              width: 80,
+              marginRight: 8,
+              borderWidth: 1,
+              borderColor: borderColor,
+            }}
+            placeholder="Go to page"
+            placeholderTextColor={subtleTextColor}
+            keyboardType="number-pad"
+            value={gotoPage}
+            onChangeText={setGotoPage}
+            onSubmitEditing={() => {
+              const pageNum = parseInt(gotoPage, 10);
+              if (!isNaN(pageNum)) goToPage(pageNum);
+            }}
+            returnKeyType="go"
+          />
+          <TouchableOpacity
+            style={{
+              backgroundColor: primaryColor,
+              borderRadius: 8,
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+            }}
+            onPress={() => {
+              const pageNum = parseInt(gotoPage, 10);
+              if (!isNaN(pageNum)) goToPage(pageNum);
+            }}
+          >
+            <Text style={{ color: '#fff', fontWeight: 'bold' }}>Go</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={[styles.chapterListContainer, { backgroundColor: cardBackground, shadowColor }]}>
           <View style={styles.chapterListHeader}>

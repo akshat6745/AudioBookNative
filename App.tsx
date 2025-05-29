@@ -1,15 +1,16 @@
-import './src/utils/polyfills';
-import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
+import React from 'react';
 import { RootStackParamList } from './src/types';
+import './src/utils/polyfills';
 
 // Import screens
-import NovelsScreen from './src/screens/NovelsScreen';
-import ChaptersScreen from './src/screens/ChaptersScreen';
-import ChapterContentScreen from './src/screens/ChapterContentScreen';
 import AudioPlayerScreen from './src/screens/AudioPlayerScreen';
+import ChapterContentScreen from './src/screens/ChapterContentScreen';
+import ChaptersScreen from './src/screens/ChaptersScreen';
+import LoginScreen from './src/screens/LoginScreen';
+import NovelsScreen from './src/screens/NovelsScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -18,7 +19,7 @@ export default function App() {
     <NavigationContainer>
       <StatusBar style="auto" />
       <Stack.Navigator 
-        initialRouteName="Novels"
+        initialRouteName="Login"
         screenOptions={{
           headerStyle: {
             backgroundColor: '#007bff',
@@ -29,6 +30,11 @@ export default function App() {
           },
         }}
       >
+        <Stack.Screen 
+          name="Login" 
+          component={LoginScreen} 
+          options={{ title: 'Sign In' }}
+        />
         <Stack.Screen 
           name="Novels" 
           component={NovelsScreen} 
