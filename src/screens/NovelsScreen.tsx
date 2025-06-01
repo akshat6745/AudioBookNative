@@ -1,16 +1,18 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import ErrorDisplay from '../components/ErrorDisplay';
 import Loading from '../components/Loading';
-import { fetchNovels } from '../services/api';
+import { fetchAllUserProgress, fetchNovels } from '../services/api';
 import { RootStackParamList } from '../types';
+import { getCurrentUsername } from '../utils/config';
 
 type NovelsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Novels'>;
 
 const NovelsScreen = () => {
   const [novels, setNovels] = useState<string[]>([]);
+  const [progress, setProgress] = useState<{ novelName: string, lastChapterRead: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,6 +30,12 @@ const NovelsScreen = () => {
       const data = await fetchNovels();
       setNovels(data);
       setError(null);
+      const username = await getCurrentUsername();
+      if (username) {
+        fetchAllUserProgress(username).then(data => setProgress(data.progress));
+      } else {
+        setProgress([]);
+      }
     } catch (err) {
       setError('Failed to fetch novels. Please try again.');
       console.error('Error loading novels:', err);
@@ -44,6 +52,15 @@ const NovelsScreen = () => {
     navigation.navigate('Chapters', { novelName });
   };
 
+  const handleResumePress = (novelName: string, lastChapter: number) => {
+    navigation.navigate('Chapters', { novelName, lastChapter });
+  };
+
+  const getLastReadChapter = (novelName: string) => {
+    const entry = progress.find(p => p.novelName === novelName);
+    return entry ? entry.lastChapterRead : null;
+  };
+
   if (loading) {
     return <Loading message="Loading novels..." />;
   }
@@ -55,18 +72,32 @@ const NovelsScreen = () => {
   return (
     <View style={[styles.container, { backgroundColor }]}>
       <Text style={[styles.title, { color: textColor }]}>Available Novels</Text>
-      <FlatList
-        data={novels}
-        keyExtractor={(item, index) => `novel-${index}`}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[styles.novelItem, { backgroundColor: cardBackground, shadowColor }]}
-            onPress={() => handleNovelPress(item)}
-          >
-            <Text style={[styles.novelTitle, { color: textColor }]}>{item}</Text>
-          </TouchableOpacity>
-        )}
-      />
+      <ScrollView>
+        {novels.map((novel, idx) => {
+          const lastRead = getLastReadChapter(novel);
+          return (
+            <TouchableOpacity
+              key={novel + '-' + idx}
+              style={[styles.novelItem, { backgroundColor: cardBackground, shadowColor }]}
+              onPress={() => handleNovelPress(novel)}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.novelTitle, { color: textColor }]}>{novel}</Text>
+              {lastRead && (
+                <TouchableOpacity
+                  style={[styles.resumeContainer, { backgroundColor: cardBackground, borderColor: textColor }]}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleResumePress(novel, lastRead);
+                  }}
+                >
+                  <Text style={[styles.resumeText, { color: textColor }]}>Continue from Chapter {lastRead}</Text>
+                </TouchableOpacity>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 };
@@ -96,6 +127,18 @@ const styles = StyleSheet.create({
   },
   novelTitle: {
     fontSize: 18,
+    // color will be set dynamically
+  },
+  resumeContainer: {
+    padding: 12,
+    borderWidth: 2,
+    borderColor: '#E8E8E8',
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  resumeText: {
+    fontSize: 16,
+    fontWeight: 'bold',
     // color will be set dynamically
   },
 });

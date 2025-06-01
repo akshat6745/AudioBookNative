@@ -16,4 +16,23 @@ export const COLORS = {
   textSecondary: '#666666',
   border: 'rgba(0, 0, 0, 0.1)',
   error: '#ff3b30',
-}; 
+};
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+export const LOGIN_KEY = 'userLogin';
+
+export async function getCurrentUsername(): Promise<string | null> {
+  try {
+    const stored = await AsyncStorage.getItem(LOGIN_KEY);
+    if (stored) {
+      const { username, expiry } = JSON.parse(stored);
+      if (username && expiry && Date.now() < expiry) {
+        return username;
+      }
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+} 

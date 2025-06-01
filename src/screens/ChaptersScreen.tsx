@@ -5,8 +5,9 @@ import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import ErrorDisplay from '../components/ErrorDisplay';
 import Loading from '../components/Loading';
-import { fetchChapters } from '../services/api';
+import { fetchChapters, fetchUserProgressForNovel } from '../services/api';
 import { Chapter, PaginatedChapters, RootStackParamList } from '../types';
+import { getCurrentUsername } from '../utils/config';
 
 type ChaptersScreenRouteProp = RouteProp<RootStackParamList, 'Chapters'>;
 type ChaptersScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Chapters'>;
@@ -22,6 +23,7 @@ const ChaptersScreen = () => {
   const [lastReadChapter, setLastReadChapter] = useState<number | null>(null);
   const [latestChapter, setLatestChapter] = useState<Chapter | null>(null);
   const [gotoPage, setGotoPage] = useState('');
+  const [userProgress, setUserProgress] = useState<number | null>(null);
 
   const route = useRoute<ChaptersScreenRouteProp>();
   const navigation = useNavigation<ChaptersScreenNavigationProp>();
@@ -46,6 +48,19 @@ const ChaptersScreen = () => {
       setLastReadChapter(lastChapter);
     }
   }, [lastChapter]);
+
+  useEffect(() => {
+    (async () => {
+      const username = await getCurrentUsername();
+      if (username) {
+        fetchUserProgressForNovel(username, novelName)
+          .then(data => setUserProgress(data.lastChapterRead))
+          .catch(() => setUserProgress(null));
+      } else {
+        setUserProgress(null);
+      }
+    })();
+  }, [novelName]);
 
   const loadChapters = async (page: number = 1) => {
     try {
@@ -256,19 +271,17 @@ const ChaptersScreen = () => {
 
         {renderLatestChapter()}
 
-        {lastReadChapter && (
+        {userProgress && (
           <TouchableOpacity
             style={[styles.resumeContainer, { backgroundColor: infoBackground, borderColor: primaryColor }]}
             onPress={() => {
-              const lastChapter = chaptersData.chapters.find(c => c.chapterNumber === lastReadChapter);
-              if (lastChapter) {
-                handleChapterPress(lastChapter);
-              }
+              const chapter = chaptersData.chapters.find(c => c.chapterNumber === userProgress);
+              if (chapter) handleChapterPress(chapter);
             }}
           >
             <Ionicons name="play-circle" size={24} color={primaryColor} />
             <Text style={[styles.resumeText, { color: primaryColor }]}>
-              Resume Chapter {lastReadChapter}
+              Start from previous session (Chapter {userProgress})
             </Text>
           </TouchableOpacity>
         )}

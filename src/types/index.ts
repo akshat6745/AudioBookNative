@@ -1,5 +1,6 @@
 export interface Novel {
   name: string;
+  id?: string;
 }
 
 export interface Chapter {

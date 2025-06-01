@@ -1,6 +1,6 @@
 import ky from 'ky';
+import { PaginatedChapters } from '../types';
 import { API_URL, DEFAULT_VOICE } from '../utils/config';
-import { Chapter, PaginatedChapters } from '../types';
 
 // Define interface types for API responses
 interface Novel {
@@ -95,7 +95,7 @@ const api = ky.create({
 // API functions
 export const fetchNovels = async () => {
   try {
-    const response = await api.get('novels').json<Novel[]>();
+    const response = await api.get('novels').json<string[]>();
     return response;
   } catch (error) {
     console.error('Error fetching novels:', error);
@@ -226,5 +226,30 @@ export const logTtsMetrics = () => {
   
   return summary;
 };
+
+// Fetch all progress for a user
+export async function fetchAllUserProgress(username: string) {
+  const res = await fetch(`${API_URL}/user/progress?username=${username}`);
+  if (!res.ok) throw new Error('Failed to fetch user progress');
+  return res.json();
+}
+
+// Fetch progress for a specific novel
+export async function fetchUserProgressForNovel(username: string, novelName: string) {
+  const res = await fetch(`${API_URL}/user/progress/${encodeURIComponent(novelName)}?username=${username}`);
+  if (!res.ok) throw new Error('Failed to fetch novel progress');
+  return res.json();
+}
+
+// Save user progress
+export async function saveUserProgress(username: string, novelName: string, lastChapterRead: number) {
+  const res = await fetch(`${API_URL}/user/progress`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, novelName, lastChapterRead }),
+  });
+  if (!res.ok) throw new Error('Failed to save progress');
+  return res.json();
+}
 
 export default api; 
