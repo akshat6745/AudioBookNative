@@ -1,6 +1,6 @@
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import ErrorDisplay from '../components/ErrorDisplay';
 import Loading from '../components/Loading';
@@ -44,9 +44,16 @@ const NovelsScreen = () => {
     }
   };
 
-  useEffect(() => {
-    loadNovels();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      loadNovels();
+      // @ts-ignore: Custom event type workaround
+      const unsubscribe = (navigation as any).addListener('progressUpdated', () => {
+        loadNovels();
+      });
+      return unsubscribe;
+    }, [navigation])
+  );
 
   const handleNovelPress = (novelName: string) => {
     navigation.navigate('Chapters', { novelName });

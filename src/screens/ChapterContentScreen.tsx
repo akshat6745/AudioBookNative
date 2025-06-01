@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { RouteProp, useNavigation, useNavigation as useRawNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -7,9 +7,9 @@ import ApiMonitor from '../components/ApiMonitor';
 import ErrorDisplay from '../components/ErrorDisplay';
 import FloatingAudioPlayer from '../components/FloatingAudioPlayer';
 import Loading from '../components/Loading';
-import { fetchChapterContent, fetchChapters, logTtsMetrics } from '../services/api';
+import { fetchChapterContent, fetchChapters, logTtsMetrics, saveUserProgress } from '../services/api';
 import { Chapter, RootStackParamList } from '../types';
-import { DEFAULT_VOICE } from '../utils/config';
+import { DEFAULT_VOICE, getCurrentUsername } from '../utils/config';
 
 type ChapterContentScreenRouteProp = RouteProp<RootStackParamList, 'ChapterContent'>;
 type ChapterContentScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ChapterContent'>;
@@ -55,7 +55,8 @@ const ChapterContentScreen = () => {
   const lastActiveIndexRef = useRef(-1);
 
   const route = useRoute<ChapterContentScreenRouteProp>();
-  const navigation = useNavigation<ChapterContentScreenNavigationProp>();
+  const navigation = useRawNavigation();
+  const typedNavigation = useNavigation<ChapterContentScreenNavigationProp>();
   const { novelName, chapterNumber, chapterTitle } = route.params;
   const flatListRef = useRef<FlatList>(null);
 
@@ -149,7 +150,7 @@ const ChapterContentScreen = () => {
     setParsedChapterInfo(parsedInfo);
 
     // Set the navigation title
-    navigation.setOptions({
+    typedNavigation.setOptions({
       title: `Chapter ${parsedInfo.chapterNumber}`,
     });
 
@@ -158,16 +159,16 @@ const ChapterContentScreen = () => {
 
     // Load all available chapters for navigation
     loadAllChapters();
-  }, [navigation, novelName, chapterNumber, chapterTitle]);
+  }, [typedNavigation, novelName, chapterNumber, chapterTitle]);
 
   // Add a custom back handler
   useEffect(() => {
     // Add a custom handler for when the user presses the back button
-    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+    const unsubscribe = typedNavigation.addListener('beforeRemove', (e) => {
       // Navigate back to chapters screen with the current chapter number
       if (e.data.action.type === 'GO_BACK') {
         e.preventDefault();
-        navigation.navigate('Chapters', {
+        typedNavigation.navigate('Chapters', {
           novelName,
           lastChapter: chapterNumber
         });
@@ -175,7 +176,7 @@ const ChapterContentScreen = () => {
     });
 
     return unsubscribe;
-  }, [navigation, novelName, chapterNumber]);
+  }, [typedNavigation, novelName, chapterNumber]);
 
   const handleParagraphPress = (index: number) => {
     console.log(`Paragraph ${index} pressed`);
@@ -258,7 +259,7 @@ const ChapterContentScreen = () => {
         }
 
         // Update navigation title first to give user feedback
-        navigation.setOptions({
+        typedNavigation.setOptions({
           title: `Chapter ${nextChapterNumber}`,
         });
 
@@ -270,7 +271,7 @@ const ChapterContentScreen = () => {
         });
 
         // Update route params to match the new chapter
-        navigation.setParams({
+        typedNavigation.setParams({
           novelName,
           chapterNumber: nextChapterNumber,
           chapterTitle: `Chapter ${nextChapterNumber}`,
@@ -278,6 +279,21 @@ const ChapterContentScreen = () => {
 
         // Update state with new chapter content
         setParagraphs(nextParagraphs);
+
+        // Save user progress
+        const username = await getCurrentUsername();
+        if (username) {
+          try {
+            await saveUserProgress(username, novelName, nextChapterNumber);
+            // Emit event for UI update
+            navigation.emit({
+              type: 'progressUpdated',
+              data: { novelName, lastChapterRead: nextChapterNumber }
+            });
+          } catch (e) {
+            console.error('Failed to save user progress:', e);
+          }
+        }
 
         // Reset isPlaying state to ensure it's set to play mode
         const wasPlaying = true; // Always assume we want to continue playing
@@ -306,7 +322,7 @@ const ChapterContentScreen = () => {
     } finally {
       setLoadingNextChapter(false);
     }
-  }, [novelName, chapterNumber, navigation, loadingNextChapter, audioSettings, latestChapterNumber]);
+  }, [novelName, chapterNumber, typedNavigation, loadingNextChapter, audioSettings, latestChapterNumber]);
 
   const handleCloseAudioPlayer = () => {
     setShowAudioPlayer(false);

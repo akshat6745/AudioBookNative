@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import ErrorDisplay from '../components/ErrorDisplay';
 import Loading from '../components/Loading';
-import { fetchChapters, fetchUserProgressForNovel } from '../services/api';
+import { fetchChapters, fetchUserProgressForNovel, saveUserProgress } from '../services/api';
 import { Chapter, PaginatedChapters, RootStackParamList } from '../types';
 import { getCurrentUsername } from '../utils/config';
 
@@ -62,6 +62,17 @@ const ChaptersScreen = () => {
     })();
   }, [novelName]);
 
+  useEffect(() => {
+    // @ts-ignore: Custom event type workaround
+    const unsubscribe = (navigation as any).addListener('progressUpdated', (e: any) => {
+      if (e.data.novelName === novelName) {
+        setUserProgress(e.data.lastChapterRead);
+        setLastReadChapter(e.data.lastChapterRead);
+      }
+    });
+    return unsubscribe;
+  }, [navigation, novelName]);
+
   const loadChapters = async (page: number = 1) => {
     try {
       setLoading(true);
@@ -92,10 +103,17 @@ const ChaptersScreen = () => {
     loadChapters();
   }, [navigation, novelName]);
 
-  const handleChapterPress = (chapter: Chapter) => {
-    // Update last read chapter
+  const handleChapterPress = async (chapter: Chapter) => {
     setLastReadChapter(chapter.chapterNumber);
-
+    const username = await getCurrentUsername();
+    if (username) {
+      try {
+        await saveUserProgress(username, novelName, chapter.chapterNumber);
+        setUserProgress(chapter.chapterNumber);
+      } catch (e) {
+        console.error('Failed to save user progress:', e);
+      }
+    }
     navigation.navigate('ChapterContent', {
       novelName,
       chapterNumber: chapter.chapterNumber,
@@ -275,8 +293,13 @@ const ChaptersScreen = () => {
           <TouchableOpacity
             style={[styles.resumeContainer, { backgroundColor: infoBackground, borderColor: primaryColor }]}
             onPress={() => {
-              const chapter = chaptersData.chapters.find(c => c.chapterNumber === userProgress);
-              if (chapter) handleChapterPress(chapter);
+              if (userProgress) {
+                navigation.navigate('ChapterContent', {
+                  novelName,
+                  chapterNumber: userProgress,
+                  chapterTitle: `Chapter ${userProgress}`,
+                });
+              }
             }}
           >
             <Ionicons name="play-circle" size={24} color={primaryColor} />

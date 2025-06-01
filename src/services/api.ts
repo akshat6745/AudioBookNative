@@ -199,9 +199,6 @@ export const getTtsStreamUrl = (text: string, voice: string = DEFAULT_VOICE, par
   const timestamp = Date.now();
   url.searchParams.append('_cb', timestamp.toString());
   
-  // Log TTS call details
-  console.log(`[TTS API Call #${apiMetrics.ttsCallCount}] Voice: ${voice}, Text length: ${text.length}, Paragraph: ${paragraphIndex ?? 'unknown'}`);
-  
   // Record the API call in our history
   apiMetrics.ttsCallHistory.push({
     timestamp,
@@ -217,12 +214,6 @@ export const getTtsStreamUrl = (text: string, voice: string = DEFAULT_VOICE, par
 // Helper function to log TTS call metrics
 export const logTtsMetrics = () => {
   const summary = apiMetrics.getCallsSummary();
-  console.log('=== TTS API Call Metrics ===');
-  console.log(`Total calls: ${summary.totalCalls}`);
-  console.log(`Calls in last 5 minutes: ${summary.callsIn5Min}`);
-  console.log(`Calls in last hour: ${summary.callsIn1Hour}`);
-  console.log(`Success rate: ${(summary.successRate * 100).toFixed(1)}%`);
-  console.log('=========================');
   
   return summary;
 };
