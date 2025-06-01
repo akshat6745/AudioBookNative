@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { RootStackParamList } from '../types';
+import { API_URL } from '../utils/config';
 
 const LOGIN_KEY = 'userLogin';
 const LOGIN_EXPIRY_DAYS = 30;
@@ -58,7 +59,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   const handleSubmit = async () => {
     try {
       const endpoint = isLogin ? '/userLogin' : '/register';
-      const response = await fetch(`http://localhost:8000${endpoint}`, {
+      const response = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
