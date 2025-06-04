@@ -1,13 +1,13 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Pressable } from 'react-native';
-import { Audio } from 'expo-av';
-import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { fetchAudio, getTtsStreamUrl } from '../services/api';
-import { RootStackParamList } from '../types';
 import { Ionicons } from '@expo/vector-icons';
-import Loading from '../components/Loading';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Audio } from 'expo-av';
+import React, { useEffect, useRef, useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import ErrorDisplay from '../components/ErrorDisplay';
+import Loading from '../components/Loading';
+import { getTtsStreamUrl } from '../services/api';
+import { RootStackParamList } from '../types';
 import { DEFAULT_VOICE } from '../utils/config';
 
 type AudioPlayerScreenRouteProp = RouteProp<RootStackParamList, 'AudioPlayer'>;
@@ -92,7 +92,6 @@ const AudioPlayerScreen = () => {
     
     // Check if this audio is already in our cache
     if(audioCacheRef.current[cacheKey]) {
-      console.log(`Using cached audio for paragraph ${index} with voice ${selectedVoice}`);
       
       const cachedSound = audioCacheRef.current[cacheKey];
       
@@ -143,7 +142,6 @@ const AudioPlayerScreen = () => {
     try {
       const url = getTtsStreamUrl(paragraph, selectedVoice, index);
       
-      console.log(`Loading audio for paragraph ${index} from: ${url}`);
       
       const { sound } = await Audio.Sound.createAsync(
         { 
@@ -269,7 +267,6 @@ const AudioPlayerScreen = () => {
       
       // If next audio is not loaded, load it now
       if (!nextAudio || paragraphAudios[nextIndex]?.voiceId !== selectedVoice) {
-        console.log(`Next audio not preloaded or voice changed, loading paragraph ${nextIndex} now`);
         await loadAudioParagraph(nextIndex);
         
         // Get reference to the newly loaded audio

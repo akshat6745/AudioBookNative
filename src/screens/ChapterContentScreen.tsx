@@ -179,7 +179,6 @@ const ChapterContentScreen = () => {
   }, [typedNavigation, novelName, chapterNumber]);
 
   const handleParagraphPress = (index: number) => {
-    console.log(`Paragraph ${index} pressed`);
 
     // Validate paragraph index
     if (index < 0 || index >= paragraphs.length) {
@@ -200,7 +199,6 @@ const ChapterContentScreen = () => {
   };
 
   const handleParagraphComplete = useCallback((newIndex: number) => {
-    console.log(`Paragraph complete, moving to index ${newIndex}`);
 
     // Validate new index
     if (newIndex < 0 || newIndex >= paragraphs.length) {
@@ -215,7 +213,6 @@ const ChapterContentScreen = () => {
       // Use a small timeout to ensure the UI updates before scrolling
       setTimeout(() => {
         if (flatListRef.current && paragraphs.length > newIndex) {
-          console.log(`Scrolling to paragraph ${newIndex}`);
           flatListRef.current.scrollToIndex({
             index: newIndex,
             animated: true,
@@ -227,14 +224,12 @@ const ChapterContentScreen = () => {
   }, [paragraphs.length]);
 
   const handleChapterComplete = useCallback(async () => {
-    console.log('Chapter complete, checking for next chapter');
 
     // Don't proceed if we're already loading a new chapter
     if (loadingNextChapter) return;
 
     // Prevent advancing past the latest chapter
     if (latestChapterNumber !== null && chapterNumber >= latestChapterNumber) {
-      console.log('Already at the latest chapter. No more chapters available.');
       return;
     }
 
