@@ -1,18 +1,23 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import * as DocumentPicker from 'expo-document-picker';
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import ErrorDisplay from '../components/ErrorDisplay';
 import Loading from '../components/Loading';
-import { fetchAllUserProgress, fetchNovels } from '../services/api';
-import { RootStackParamList } from '../types';
+import { fetchAllUserProgress, fetchNovels, uploadEpub } from '../services/api';
+import { Novel, RootStackParamList } from '../types';
 import { getCurrentUsername } from '../utils/config';
 
 type NovelsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Novels'>;
 
 const NovelsScreen = () => {
-  const [novels, setNovels] = useState<string[]>([]);
-  const [progress, setProgress] = useState<{ novelName: string, lastChapterRead: number }[]>([]);
+  const [novels, setNovels] = useState<Novel[]>([]);
+  interface ReadingProgress {
+    novelName: string;
+    lastChapterRead: number | undefined;
+  }
+  const [progress, setProgress] = useState<ReadingProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,6 +27,7 @@ const NovelsScreen = () => {
   const backgroundColor = '#0A0A0A'; // Dark background
   const cardBackground = '#1A1A1A'; // Dark card background
   const textColor = '#E8E8E8'; // Light text
+  const subtleTextColor = '#888888'; // Subtle text for metadata
   const shadowColor = '#000';
 
   const loadNovels = async () => {
@@ -32,13 +38,55 @@ const NovelsScreen = () => {
       setError(null);
       const username = await getCurrentUsername();
       if (username) {
-        fetchAllUserProgress(username).then(data => setProgress(data.progress));
+        const progressData = await fetchAllUserProgress(username);
+        setProgress(progressData.progress.map(p => ({
+          ...p,
+          lastChapterRead: p.lastChapterRead || undefined
+        })));
       } else {
         setProgress([]);
       }
     } catch (err) {
       setError('Failed to fetch novels. Please try again.');
       console.error('Error loading novels:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUploadEpub = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/epub+zip',
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled) {
+        setLoading(true);
+        
+        const formData = new FormData();
+        formData.append('file', {
+          uri: result.assets[0].uri,
+          type: 'application/epub+zip',
+          name: result.assets[0].name
+        } as any);
+
+        const uploadResult = await uploadEpub(formData);
+        await loadNovels();
+        
+        Alert.alert(
+          'Success',
+          `${uploadResult.title} was successfully uploaded`,
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (err) {
+      console.error('EPUB upload error:', err);
+      Alert.alert(
+        'Upload Failed',
+        'There was an error uploading the EPUB file. Please try again.',
+        [{ text: 'OK' }]
+      );
     } finally {
       setLoading(false);
     }
@@ -68,6 +116,51 @@ const NovelsScreen = () => {
     return entry ? entry.lastChapterRead : null;
   };
 
+  const renderNovelItem = (novel: Novel) => {
+    const lastRead = getLastReadChapter(novel.title);
+    return (
+      <TouchableOpacity
+        key={novel.title}
+        style={[styles.novelItem, { backgroundColor: cardBackground, shadowColor }]}
+        onPress={() => navigation.navigate('Chapters', { 
+          novelName: novel.title,
+          lastChapter: lastRead
+        })}
+        activeOpacity={0.85}
+      >
+        <View style={styles.novelInfo}>
+          <Text style={[styles.novelTitle, { color: textColor }]}>{novel.title}</Text>
+          {novel.author && (
+            <Text style={[styles.novelAuthor, { color: subtleTextColor }]}>
+              by {novel.author}
+            </Text>
+          )}
+          {novel.chapterCount && (
+            <Text style={[styles.novelChapters, { color: subtleTextColor }]}>
+              {novel.chapterCount} chapters
+            </Text>
+          )}
+          <Text style={[styles.novelSource, { color: subtleTextColor }]}>
+            Source: {novel.source === 'google_doc' ? 'Web Novel' : 'EPUB'}
+          </Text>
+        </View>
+        {lastRead && (
+          <TouchableOpacity
+            style={[styles.resumeButton, { borderColor: textColor }]}
+            onPress={() => navigation.navigate('Chapters', { 
+              novelName: novel.title,
+              lastChapter: lastRead
+            })}
+          >
+            <Text style={[styles.resumeText, { color: textColor }]}>
+              Continue Ch. {lastRead}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
   if (loading) {
     return <Loading message="Loading novels..." />;
   }
@@ -78,32 +171,17 @@ const NovelsScreen = () => {
 
   return (
     <View style={[styles.container, { backgroundColor }]}>
+      {/* Upload EPUB Button */}
+      <TouchableOpacity
+        style={styles.uploadButton}
+        onPress={handleUploadEpub}
+        activeOpacity={0.85}
+      >
+        <Text style={styles.uploadButtonText}>Upload EPUB</Text>
+      </TouchableOpacity>
       <Text style={[styles.title, { color: textColor }]}>Available Novels</Text>
       <ScrollView>
-        {novels.map((novel, idx) => {
-          const lastRead = getLastReadChapter(novel);
-          return (
-            <TouchableOpacity
-              key={novel + '-' + idx}
-              style={[styles.novelItem, { backgroundColor: cardBackground, shadowColor }]}
-              onPress={() => handleNovelPress(novel)}
-              activeOpacity={0.85}
-            >
-              <Text style={[styles.novelTitle, { color: textColor }]}>{novel}</Text>
-              {lastRead && (
-                <TouchableOpacity
-                  style={[styles.resumeContainer, { backgroundColor: cardBackground, borderColor: textColor }]}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    handleResumePress(novel, lastRead);
-                  }}
-                >
-                  <Text style={[styles.resumeText, { color: textColor }]}>Continue from Chapter {lastRead}</Text>
-                </TouchableOpacity>
-              )}
-            </TouchableOpacity>
-          );
-        })}
+        {novels.map(novel => renderNovelItem(novel))}
       </ScrollView>
     </View>
   );
@@ -113,7 +191,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    // backgroundColor will be set dynamically
   },
   title: {
     fontSize: 24,
@@ -122,31 +199,61 @@ const styles = StyleSheet.create({
     // color will be set dynamically
   },
   novelItem: {
-    // backgroundColor will be set dynamically
+    marginBottom: 16,
     padding: 16,
     borderRadius: 8,
-    marginBottom: 12,
-    elevation: 2,
-    // shadowColor will be set dynamically
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.22,
-    shadowRadius: 2.22,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  novelInfo: {
+    flex: 1,
   },
   novelTitle: {
     fontSize: 18,
-    // color will be set dynamically
+    fontWeight: 'bold',
+    marginBottom: 4,
   },
-  resumeContainer: {
-    padding: 12,
-    borderWidth: 2,
-    borderColor: '#E8E8E8',
-    borderRadius: 8,
+  novelAuthor: {
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  novelChapters: {
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  novelSource: {
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
+  resumeButton: {
     marginTop: 8,
+    padding: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
   },
   resumeText: {
-    fontSize: 16,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  uploadButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    backgroundColor: '#007AFF',
+    padding: 16,
+    borderRadius: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  uploadButtonText: {
+    color: '#fff',
     fontWeight: 'bold',
-    // color will be set dynamically
   },
 });
 

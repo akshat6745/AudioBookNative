@@ -1,13 +1,25 @@
 export interface Novel {
-  name: string;
-  id?: string;
+  id: string | null;
+  title: string;
+  author: string | null;
+  chapterCount: number | null;
+  source: 'google_doc' | 'epub_upload';
 }
 
-export interface Chapter {
+export interface BaseChapter {
   chapterNumber: number;
   chapterTitle: string;
+}
+
+export interface WebNovelChapter extends BaseChapter {
   link: string;
 }
+
+export interface EpubChapter extends BaseChapter {
+  id: string;
+}
+
+export type Chapter = WebNovelChapter | EpubChapter;
 
 export interface PaginatedChapters {
   chapters: Chapter[];

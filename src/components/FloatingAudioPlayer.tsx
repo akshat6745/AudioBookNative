@@ -475,7 +475,7 @@ const FloatingAudioPlayer = ({
 
                       // Preload next paragraphs
                       setTimeout(() => {
-                        preloadNextParagraph();
+                        preloadNextParagraphs();
                       }, 300);
                     }
                   })
@@ -693,7 +693,7 @@ const FloatingAudioPlayer = ({
       if (initialParagraphIndex < paragraphs.length - 1) {
         // Use setTimeout to not block the main audio loading
         setTimeout(() => {
-          preloadNextParagraph();
+          preloadNextParagraphs();
         }, 500);
       }
     } catch (err) {
@@ -704,41 +704,41 @@ const FloatingAudioPlayer = ({
     }
   };
 
-  const preloadNextParagraph = async () => {
+  // Refactored: Preload next paragraphs until at least 1500 characters are preloaded (current chapter only)
+  const preloadNextParagraphs = async () => {
     try {
       logCacheStatus("Before preload");
 
-      // Preload the next 4 paragraphs instead of just the next one
-      const maxPreloadCount = 4;
+      const CHAR_THRESHOLD = 1500;
+      let charCount = 0;
+      let i = 1;
+      const paragraphsToPreload: { index: number; text: string }[] = [];
 
-      for (let i = 1; i <= maxPreloadCount; i++) {
+      // Accumulate paragraphs after the current one until threshold or end
+      while (true) {
         const nextIndex = initialParagraphIndex + i;
         if (nextIndex >= paragraphs.length) break;
-
         const nextText = paragraphs[nextIndex];
-        if (!nextText || nextText.trim().length === 0) continue;
+        if (!nextText || nextText.trim().length === 0) {
+          i++;
+          continue;
+        }
+        paragraphsToPreload.push({ index: nextIndex, text: nextText });
+        charCount += nextText.length;
+        if (charCount >= CHAR_THRESHOLD) break;
+        i++;
+      }
 
+      for (const { index: nextIndex, text: nextText } of paragraphsToPreload) {
         const cacheKey = getCacheKey(nextText, selectedVoice);
-
-        // Only preload if not already in cache and not already loading
         const inProgressKey = `loading:${cacheKey}`;
-        if (
-          !audioCacheRef.current[cacheKey] &&
-          !loadingTrackerRef.current[inProgressKey]
-        ) {
-
-          // Mark as loading to prevent duplicate requests
+        if (!audioCacheRef.current[cacheKey] && !loadingTrackerRef.current[inProgressKey]) {
           loadingTrackerRef.current[inProgressKey] = true;
-
           try {
-            // Use a different approach for preloading to avoid conflicts with main audio
             const url = getTtsStreamUrl(nextText, selectedVoice, nextIndex);
-
-            // Use a timeout to limit how long we wait for preloading
             const timeoutPromise = new Promise((_, reject) => {
               setTimeout(() => reject(new Error("Preload timeout")), 5000);
             });
-
             const loadPromise = Audio.Sound.createAsync(
               {
                 uri: url,
@@ -749,23 +749,15 @@ const FloatingAudioPlayer = ({
               },
               { shouldPlay: false }
             );
-
-            // Race the promises
             const { sound } = (await Promise.race([
               loadPromise,
               timeoutPromise,
             ])) as { sound: Audio.Sound };
-
-            // Set the right playback rate
             await sound.setRateAsync(playbackSpeed, true);
-
-            // Store in cache only if successful
             audioCacheRef.current[cacheKey] = sound;
           } catch (err) {
-            // Just log the error for preloading, no need to show to user
             console.warn(`Error preloading paragraph ${nextIndex}:`, err);
           } finally {
-            // Always clear the loading flag
             loadingTrackerRef.current[inProgressKey] = false;
           }
         }
@@ -774,7 +766,6 @@ const FloatingAudioPlayer = ({
       logCacheStatus("After preload");
     } catch (err) {
       console.warn("Error during preload:", err);
-      // Errors during preload are not critical, so just log them
     }
   };
 
@@ -794,7 +785,7 @@ const FloatingAudioPlayer = ({
 
         // When starting playback, ensure next paragraphs are preloaded
         setTimeout(() => {
-          preloadNextParagraph();
+          preloadNextParagraphs();
         }, 300);
       }
     } catch (err) {
@@ -989,7 +980,7 @@ const FloatingAudioPlayer = ({
 
               // Try to preload next paragraphs
               setTimeout(() => {
-                preloadNextParagraph();
+                preloadNextParagraphs();
               }, 300);
 
               return;

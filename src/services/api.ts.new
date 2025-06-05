@@ -44,15 +44,13 @@ interface EpubChapter extends BaseChapter {
 
 type ChapterResponse = WebNovelChapter | EpubChapter;
 
-// API response interfaces
 interface PaginatedChaptersResponse {
   chapters: ChapterResponse[];
   total_pages: number;
   current_page: number;
 }
 
-// Add a counter to track TTS API calls
-// This will be used for monitoring and debugging
+// Track TTS API calls
 export const apiMetrics = {
   ttsCallCount: 0,
   ttsCallHistory: [] as {
@@ -70,40 +68,34 @@ export const apiMetrics = {
   },
   getCallCount: () => apiMetrics.ttsCallCount,
   getCallHistory: () => apiMetrics.ttsCallHistory,
-  getCallsSummary: () => {
-    return {
-      totalCalls: apiMetrics.ttsCallCount,
-      callsIn5Min: apiMetrics.ttsCallHistory.filter(call => 
-        (Date.now() - call.timestamp) < 5 * 60 * 1000
-      ).length,
-      callsIn1Hour: apiMetrics.ttsCallHistory.filter(call => 
-        (Date.now() - call.timestamp) < 60 * 60 * 1000
-      ).length,
-      successRate: apiMetrics.ttsCallHistory.length > 0 
-        ? apiMetrics.ttsCallHistory.filter(call => call.success).length / apiMetrics.ttsCallHistory.length
-        : 0
-    };
-  }
+  getCallsSummary: () => ({
+    totalCalls: apiMetrics.ttsCallCount,
+    callsIn5Min: apiMetrics.ttsCallHistory.filter(call => 
+      (Date.now() - call.timestamp) < 5 * 60 * 1000
+    ).length,
+    callsIn1Hour: apiMetrics.ttsCallHistory.filter(call => 
+      (Date.now() - call.timestamp) < 60 * 60 * 1000
+    ).length,
+    successRate: apiMetrics.ttsCallHistory.length > 0 
+      ? apiMetrics.ttsCallHistory.filter(call => call.success).length / apiMetrics.ttsCallHistory.length
+      : 0
+  })
 };
 
-// Create a ky instance with improved configuration
+// Create Ky instance with configuration
 const api = ky.create({
   prefixUrl: API_URL,
-  timeout: 10000, // 10 second timeout
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
   hooks: {
     beforeRequest: [
-      request => {
-        console.log(`API Request: ${request.method} ${request.url}`);
-      }
+      request => console.log(`API Request: ${request.method} ${request.url}`)
     ],
     afterResponse: [
       (request, options, response) => {
-        if (!response.ok) {
-          console.error('API Error Response:', response.status);
-        }
+        if (!response.ok) console.error('API Error Response:', response.status);
         return response;
       }
     ],
@@ -119,8 +111,7 @@ const api = ky.create({
 // API functions
 export const fetchNovels = async (): Promise<Novel[]> => {
   try {
-    const response = await api.get('novels').json<Novel[]>();
-    return response;
+    return await api.get('novels').json<Novel[]>();
   } catch (error) {
     console.error('Error fetching novels:', error);
     throw error;
@@ -129,26 +120,22 @@ export const fetchNovels = async (): Promise<Novel[]> => {
 
 export const uploadEpub = async (file: FormData): Promise<EpubUploadResponse> => {
   try {
-    const response = await api.post('upload-epub', {
+    return await api.post('upload-epub', {
       body: file,
       headers: {
-        // Remove Content-Type header to let browser set it with boundary
-        'Content-Type': undefined
+        'Content-Type': undefined // Let browser set it with boundary
       }
     }).json<EpubUploadResponse>();
-    return response;
   } catch (error) {
     console.error('Error uploading EPUB:', error);
     throw error;
   }
 };
 
-// Helper function to determine if a chapter is from web novel
 const isWebNovelChapter = (chapter: ChapterResponse): chapter is WebNovelChapter => {
   return 'link' in chapter;
 };
 
-// Update the fetchChapters function to handle both types
 export const fetchChapters = async (novelName: string, page: number = 1): Promise<PaginatedChapters> => {
   try {
     const response = await api
@@ -172,30 +159,55 @@ export const fetchChapters = async (novelName: string, page: number = 1): Promis
   }
 };
 
-export const fetchChapterContent = async (novelName: string, chapterNumber: number) => {
+export const fetchChapterContent = async (novelName: string, chapterNumber: number): Promise<string[]> => {
   try {
     const response = await api.get('chapter', {
-      searchParams: {
-        novelName,
-        chapterNumber,
-      }
-    }).json<{content: string}>();
+      searchParams: { novelName, chapterNumber }
+    }).json<ChapterContent>();
     return response.content;
   } catch (error) {
-    console.error(`Error fetching chapter content:`, error);
+    console.error('Error fetching chapter content:', error);
     throw error;
   }
 };
 
-export const getAudioUrl = (text: string, voice: string = DEFAULT_VOICE) => {
-  return `${API_URL}/tts`;
+export const fetchAllUserProgress = async (username: string): Promise<{ progress: UserProgress[] }> => {
+  try {
+    return await api.get('user/progress', {
+      searchParams: { username }
+    }).json<{ progress: UserProgress[] }>();
+  } catch (error) {
+    console.error('Error fetching user progress:', error);
+    throw error;
+  }
 };
 
+export const fetchUserProgressForNovel = async (username: string, novelName: string): Promise<UserProgress> => {
+  try {
+    return await api.get(`user/progress/${encodeURIComponent(novelName)}`, {
+      searchParams: { username }
+    }).json<UserProgress>();
+  } catch (error) {
+    console.error('Error fetching novel progress:', error);
+    throw error;
+  }
+};
+
+export const saveUserProgress = async (username: string, novelName: string, lastChapterRead: number) => {
+  try {
+    return await api.post('user/progress', {
+      json: { username, novelName, lastChapterRead }
+    }).json<{ status: string; message: string }>();
+  } catch (error) {
+    console.error('Error saving progress:', error);
+    throw error;
+  }
+};
+
+// TTS functions
 export const fetchAudio = async (text: string, voice: string = DEFAULT_VOICE) => {
   try {
     const startTime = Date.now();
-    
-    // Track API call
     apiMetrics.ttsCallCount++;
     const callIndex = apiMetrics.ttsCallHistory.length;
     apiMetrics.ttsCallHistory.push({
@@ -209,42 +221,28 @@ export const fetchAudio = async (text: string, voice: string = DEFAULT_VOICE) =>
       json: { text, voice },
     }).blob();
     
-    // Update with success
     apiMetrics.ttsCallHistory[callIndex].success = true;
     apiMetrics.ttsCallHistory[callIndex].duration = Date.now() - startTime;
     
     return response;
   } catch (error) {
-    // Update with failure if we have a history entry
     if (apiMetrics.ttsCallHistory.length > 0) {
       const lastIndex = apiMetrics.ttsCallHistory.length - 1;
       apiMetrics.ttsCallHistory[lastIndex].success = false;
     }
-    
     console.error('Error fetching audio:', error);
     throw error;
   }
 };
 
-// Get a direct streaming URL for the TTS API (using GET method)
 export const getTtsStreamUrl = (text: string, voice: string = DEFAULT_VOICE, paragraphIndex?: number) => {
-  // Increment the counter each time a TTS URL is generated
   apiMetrics.ttsCallCount++;
-  
-  // Create a URL with query parameters for the streaming TTS endpoint
-  // Make sure to use GET endpoint as expo-av works better with direct GET URLs
   const url = new URL(`${API_URL}/tts`);
-  
-  // Add text directly without encoding - the API expects unencoded text
   url.searchParams.append('text', text);
   url.searchParams.append('voice', voice);
-  
-  // Add cache busting to prevent browsers from caching the audio
-  // Use a unique timestamp for each request
   const timestamp = Date.now();
   url.searchParams.append('_cb', timestamp.toString());
   
-  // Record the API call in our history
   apiMetrics.ttsCallHistory.push({
     timestamp,
     textLength: text.length,
@@ -255,37 +253,5 @@ export const getTtsStreamUrl = (text: string, voice: string = DEFAULT_VOICE, par
   
   return url.toString();
 };
-
-// Helper function to log TTS call metrics
-export const logTtsMetrics = () => {
-  const summary = apiMetrics.getCallsSummary();
-  
-  return summary;
-};
-
-// Fetch all progress for a user
-export async function fetchAllUserProgress(username: string) {
-  const res = await fetch(`${API_URL}/user/progress?username=${username}`);
-  if (!res.ok) throw new Error('Failed to fetch user progress');
-  return res.json();
-}
-
-// Fetch progress for a specific novel
-export async function fetchUserProgressForNovel(username: string, novelName: string) {
-  const res = await fetch(`${API_URL}/user/progress/${encodeURIComponent(novelName)}?username=${username}`);
-  if (!res.ok) throw new Error('Failed to fetch novel progress');
-  return res.json();
-}
-
-// Save user progress
-export async function saveUserProgress(username: string, novelName: string, lastChapterRead: number) {
-  const res = await fetch(`${API_URL}/user/progress`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, novelName, lastChapterRead }),
-  });
-  if (!res.ok) throw new Error('Failed to save progress');
-  return res.json();
-}
 
 export default api;
