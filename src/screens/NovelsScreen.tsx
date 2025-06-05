@@ -171,15 +171,16 @@ const NovelsScreen = () => {
 
   return (
     <View style={[styles.container, { backgroundColor }]}>
-      {/* Upload EPUB Button */}
-      <TouchableOpacity
-        style={styles.uploadButton}
-        onPress={handleUploadEpub}
-        activeOpacity={0.85}
-      >
-        <Text style={styles.uploadButtonText}>Upload EPUB</Text>
-      </TouchableOpacity>
-      <Text style={[styles.title, { color: textColor }]}>Available Novels</Text>
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: textColor }]}>Available Novels</Text>
+        <TouchableOpacity
+          style={[styles.uploadButton, { backgroundColor: '#007AFF' }]}
+          onPress={handleUploadEpub}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.uploadButtonText}>Upload EPUB</Text>
+        </TouchableOpacity>
+      </View>
       <ScrollView>
         {novels.map(novel => renderNovelItem(novel))}
       </ScrollView>
@@ -192,11 +193,15 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 16,
-    // color will be set dynamically
   },
   novelItem: {
     marginBottom: 16,
@@ -239,12 +244,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   uploadButton: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    backgroundColor: '#007AFF',
-    padding: 16,
-    borderRadius: 30,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
@@ -254,6 +256,7 @@ const styles = StyleSheet.create({
   uploadButtonText: {
     color: '#fff',
     fontWeight: 'bold',
+    fontSize: 14,
   },
 });
 

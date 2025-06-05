@@ -2,7 +2,7 @@
 
 ## Base URL
 ```
-http://localhost:8080
+http://localhost:8000
 ```
 
 ## Endpoints
@@ -194,7 +194,8 @@ Request:
 {
   "username": "user",
   "novelName": "novel-title",
-  "lastChapterRead": 10
+  "lastChapterRead": 10,
+  "lastParagraphRead": 5  // Optional - tracks position within chapter
 }
 ```
 
@@ -218,7 +219,8 @@ Response:
   "progress": [
     {
       "novelName": "novel-title",
-      "lastChapterRead": 10
+      "lastChapterRead": 10,
+      "lastParagraphRead": 5  // Optional
     }
   ]
 }
@@ -275,6 +277,7 @@ users/
       {
         novelName: string
         lastChapterRead: number
+        lastParagraphRead?: number  // Optional
       }
     ]
 ```
