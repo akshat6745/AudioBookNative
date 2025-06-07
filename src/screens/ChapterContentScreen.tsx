@@ -101,25 +101,39 @@ const ChapterContentScreen = () => {
   const loadChapterContent = async (novel: string = novelName, chapter: number = chapterNumber) => {
     try {
       setLoading(true);
-      const content = await fetchChapterContent(novel, chapter);
+      const response = await fetchChapterContent(novel, chapter);
 
-      // Parse content properly - ensure it's an array before filtering
+      // Update the parsed chapter info with the API response
+      const fullTitle = response.chapterTitle;
+      const titleParts = fullTitle.split('-');
+      const extractedTitle = titleParts.length > 1 ? titleParts[1].trim() : fullTitle.trim();
+
+      setParsedChapterInfo({
+        chapterNumber: response.chapterNumber,
+        title: extractedTitle,
+        publishedTime: '' // This is no longer provided in the new API
+      });
+
+      // Add the extracted title as the first paragraph
+      
+      // Update navigation title
+      typedNavigation.setOptions({
+        title: `Chapter ${response.chapterNumber}`,
+      });
+      
+      // Handle the content array
       let paragraphArray: string[] = [];
-      if (typeof content === 'string') {
-        // If content is a string, split it into paragraphs
-        paragraphArray = content.split('\n\n').filter(para => para.trim().length > 0);
-      } else if (Array.isArray(content)) {
-        // If content is already an array, use type assertion and filter
-        paragraphArray = (content as any[]).filter((para: any) => {
-          // Ensure each item is a string and not empty
-          return typeof para === 'string' && para.trim().length > 0;
-        });
-      }
+      if (Array.isArray(response.content)) {
+        // Filter valid paragraphs
+        paragraphArray = response.content.filter((para: any) => 
+          typeof para === 'string' && para.trim().length > 0
+      );
+    }
 
       if (paragraphArray.length === 0) {
         setError('No readable content found in this chapter.');
       } else {
-        setParagraphs(paragraphArray);
+        setParagraphs([extractedTitle, ...paragraphArray]);
         setError(null);
       }
     } catch (err) {
@@ -240,13 +254,8 @@ const ChapterContentScreen = () => {
       try {
         const nextContent = await fetchChapterContent(novelName, nextChapterNumber);
 
-        // Parse content properly
-        let nextParagraphs: string[] = [];
-        if (typeof nextContent === 'string') {
-          nextParagraphs = nextContent.split('\n\n').filter(para => para.trim().length > 0);
-        } else if (Array.isArray(nextContent)) {
-          nextParagraphs = (nextContent as any[]).filter((para: any) => typeof para === 'string' && para.trim().length > 0);
-        }
+        // Get paragraphs from the content array
+        const nextParagraphs = nextContent.content.filter((para: string) => para.trim().length > 0);
 
         if (nextParagraphs.length === 0) {
           console.warn('Next chapter has no readable content');
@@ -255,13 +264,13 @@ const ChapterContentScreen = () => {
 
         // Update navigation title first to give user feedback
         typedNavigation.setOptions({
-          title: `Chapter ${nextChapterNumber}`,
+          title: `Chapter ${nextContent.chapterNumber}`,
         });
 
-        // Update the parsed chapter info state
+        // Update the parsed chapter info state with data from the API
         setParsedChapterInfo({
-          chapterNumber: nextChapterNumber,
-          title: `Chapter ${nextChapterNumber}`,
+          chapterNumber: nextContent.chapterNumber,
+          title: nextContent.chapterTitle,
           publishedTime: ''
         });
 
@@ -280,11 +289,6 @@ const ChapterContentScreen = () => {
         if (username) {
           try {
             await saveUserProgress(username, novelName, nextChapterNumber);
-            // Emit event for UI update
-            navigation.emit({
-              type: 'progressUpdated',
-              data: { novelName, lastChapterRead: nextChapterNumber }
-            });
           } catch (e) {
             console.error('Failed to save user progress:', e);
           }
