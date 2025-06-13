@@ -2,72 +2,38 @@ import { FontAwesome5 } from "@expo/vector-icons";
 import { Audio } from "expo-av";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Animated,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Animated,
+    Modal,
+    Pressable,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import { getTtsStreamUrl } from "../services/api";
-import { DEFAULT_VOICE } from "../utils/config";
-
-// Voice options
-const VOICE_OPTIONS = [
-  {
-    label: "Ava (Female, US, Multilingual)",
-    value: "en-US-AvaMultilingualNeural",
-  },
-  { label: "Christopher (Male, US)", value: "en-US-ChristopherNeural" },
-  { label: "Jenny (Female, US)", value: "en-US-JennyNeural" },
-  { label: "Ryan (Male, UK)", value: "en-GB-RyanNeural" },
-  {
-    label: "Andrew (Male, US, Multilingual)",
-    value: "en-US-AndrewMultilingualNeural",
-  },
-  {
-    label: "Emma (Female, US, Multilingual)",
-    value: "en-US-EmmaMultilingualNeural",
-  },
-  { label: "Christopher (Male, US)", value: "en-US-ChristopherNeural" },
-  { label: "Guy (Male, US)", value: "en-US-GuyNeural" },
-  { label: "Michelle (Female, US)", value: "en-US-MichelleNeural" },
-  { label: "Steffan (Male, US)", value: "en-US-SteffanNeural" },
-];
-
-// Playback speed options
-const SPEED_OPTIONS = [
-  { label: "1x", value: 1 },
-  { label: "1.25x", value: 1.25 },
-  { label: "1.5x", value: 1.5 },
-  { label: "1.75x", value: 1.75 },
-  { label: "2x", value: 2 },
-];
-
-type AudioCacheType = {
-  [key: string]: Audio.Sound;
-};
-
-interface LoadingTracker {
-  [key: string]: boolean;
-}
-
-type FloatingAudioPlayerProps = {
-  paragraphs: string[];
-  initialParagraphIndex: number;
-  setActiveParagraphIndex: (index: number) => void;
-  onParagraphComplete: (index: number) => void;
-  onChapterComplete?: () => void; // Callback when all paragraphs in chapter are finished
-  isVisible: boolean;
-  onClose: () => void;
-  selectedVoice?: string; // Optional prop to control the voice from parent
-  onVoiceChange?: (voice: string) => void; // Callback when voice changes
-  playbackSpeed?: number; // Optional prop to control the speed from parent
-  onSpeedChange?: (speed: number) => void; // Callback when speed changes
-};
+import { fetchAudio } from "../services/api";
+import { styles } from "../styles/FloatingAudioPlayer.styles";
+import {
+    AudioCacheType,
+    FloatingAudioPlayerProps,
+    LoadingTracker,
+} from "../types";
+import { DEFAULT_PARAGRAPH_VOICE, DEFAULT_VOICE } from "../utils/config";
+import {
+    SPEED_OPTIONS,
+    VOICE_OPTIONS,
+    backgroundColor,
+    errorBackground,
+    errorTextColor,
+    getCacheKey,
+    isValidSound,
+    loadAudioForText,
+    logCacheStatus,
+    primaryColor,
+    secondaryBackground,
+    shadowColor,
+    textColor,
+    warningTextColor,
+} from "../utils/FloatingAudioPlayer.utils";
 
 const FloatingAudioPlayer = ({
   paragraphs,
@@ -88,18 +54,14 @@ const FloatingAudioPlayer = ({
     propSelectedVoice || DEFAULT_VOICE
   );
 
-  // Dark theme colors
-  const backgroundColor = '#1A1A1A';
-  const textColor = '#E8E8E8';
-  const primaryColor = '#4A9EFF';
-  const secondaryBackground = '#2A2A2A';
-  const errorBackground = '#2D1B1B';
-  const errorTextColor = '#FF6B6B';
-  const warningTextColor = '#FFB347';
-  const shadowColor = '#000';
   const [playbackSpeed, setPlaybackSpeed] = useState(propPlaybackSpeed || 1);
   const [showVoiceDropdown, setShowVoiceDropdown] = useState(false);
   const [showSpeedDropdown, setShowSpeedDropdown] = useState(false);
+  const [showDialogueVoiceDropdown, setShowDialogueVoiceDropdown] =
+    useState(false);
+  const [selectedDialogueVoice, setSelectedDialogueVoice] = useState(
+    DEFAULT_PARAGRAPH_VOICE
+  );
   const [error, setError] = useState<string | null>(null);
   const [isLastParagraph, setIsLastParagraph] = useState(false);
 
@@ -114,257 +76,6 @@ const FloatingAudioPlayer = ({
 
   // Track the last update time to prevent duplicate calls
   const lastUpdateRef = useRef(0);
-
-  // Helper to generate a cache key based on text and voice
-  const getCacheKey = (text: string, voice: string, speed?: number) => {
-    // Use a consistent approach - trim text to avoid whitespace differences
-    const trimmedText = text.trim();
-    // Include speed in cache key if provided
-    const speedSuffix = speed ? `:${speed}` : "";
-    return `${voice}:${trimmedText}${speedSuffix}`;
-  };
-
-  // Add a debug helper function near the top of the component
-  const logCacheStatus = (message: string) => {
-    const cacheKeys = Object.keys(audioCacheRef.current);
-    const loadingKeys = Object.keys(loadingTrackerRef.current).filter(
-      (k) => loadingTrackerRef.current[k]
-    );
-
-    // Log cache keys in a more readable format
-    if (cacheKeys.length > 0) {
-      cacheKeys.forEach((key) => {
-        // Extract paragraph number if possible
-        const keyParts = key.split(":");
-      });
-    }
-  };
-
-  // Add a helper to check if a sound is valid
-  const isValidSound = async (sound: Audio.Sound): Promise<boolean> => {
-    try {
-      const status = await sound.getStatusAsync();
-      return status.isLoaded;
-    } catch (err) {
-      console.warn("Sound validation error:", err);
-      return false;
-    }
-  };
-
-  const handleAudioSeekingErrors = async (
-    sound: Audio.Sound,
-    operation: string
-  ): Promise<boolean> => {
-    try {
-      const status = await sound.getStatusAsync();
-      if (!status.isLoaded) {
-        console.warn(`Cannot perform ${operation} on unloaded audio`);
-        return false;
-      }
-      return true;
-    } catch (err) {
-      console.warn(`Audio validation error before ${operation}:`, err);
-      return false;
-    }
-  };
-
-  // Update the loadAudioForText function
-  const loadAudioForText = async (
-    text: string,
-    index: number,
-    retryCount = 0
-  ): Promise<boolean> => {
-    if (!text || text.trim().length === 0) {
-      console.warn(`Cannot load audio for empty text at index ${index}`);
-      setError("Cannot play empty text");
-      return false;
-    }
-
-    try {
-      // Safe cleanup of current sound
-      if (currentSound.current) {
-        try {
-          // Remove handler first to prevent callback issues
-          currentSound.current.setOnPlaybackStatusUpdate(null);
-          await currentSound.current.unloadAsync().catch(() => {});
-        } catch (err) {
-          console.warn("Error unloading current sound, continuing:", err);
-        }
-        currentSound.current = null;
-      }
-
-      setLoading(true);
-      setError(null); // Clear any previous errors
-
-      const cacheKey = getCacheKey(text, selectedVoice);
-      // Check if audio is in cache
-      if (audioCacheRef.current[cacheKey]) {
-        try {
-          const sound = audioCacheRef.current[cacheKey];
-
-          // Basic validation before proceeding
-          const status = await sound
-            .getStatusAsync()
-            .catch(() => ({ isLoaded: false }));
-          if (status.isLoaded) {
-            currentSound.current = sound;
-
-            // Safer approach for initializing audio
-            try {
-              await sound.setPositionAsync(0).catch((e) => {
-                console.warn(`Position reset failed: ${e}`);
-                throw e;
-              });
-
-              await sound.setRateAsync(playbackSpeed, true).catch((e) => {
-                console.warn(`Rate setting failed: ${e}`);
-                throw e;
-              });
-
-              // Set status handler after other operations succeeded
-              sound.setOnPlaybackStatusUpdate(onPlaybackStatusUpdate);
-              return true;
-            } catch (err) {
-              console.warn(`Error initializing cached sound: ${err}`);
-              delete audioCacheRef.current[cacheKey];
-              // Will continue to API loading path
-            }
-          } else {
-            console.warn(`Cached audio for paragraph ${index} is not loaded`);
-            delete audioCacheRef.current[cacheKey];
-          }
-        } catch (err) {
-          console.warn(`Error accessing cached audio: ${err}`);
-          delete audioCacheRef.current[cacheKey];
-        }
-      }
-
-      // Check if already loading
-      const inProgressKey = `loading:${cacheKey}`;
-      if (loadingTrackerRef.current[inProgressKey]) {
-        try {
-          // Wait with timeout
-          await Promise.race([
-            new Promise<void>((resolve) => {
-              const checkInterval = setInterval(() => {
-                if (!loadingTrackerRef.current[inProgressKey]) {
-                  clearInterval(checkInterval);
-                  resolve();
-                }
-              }, 100);
-            }),
-            new Promise<void>((_, reject) =>
-              setTimeout(
-                () => reject(new Error("Waiting for audio load timed out")),
-                3000
-              )
-            ),
-          ]);
-
-          // Check if now available after waiting
-          if (audioCacheRef.current[cacheKey]) {
-            const sound = audioCacheRef.current[cacheKey];
-            const status = await sound
-              .getStatusAsync()
-              .catch(() => ({ isLoaded: false }));
-
-            if (status.isLoaded) {
-              currentSound.current = sound;
-              await sound.setPositionAsync(0).catch(() => {});
-              await sound.setRateAsync(playbackSpeed, true).catch(() => {});
-              sound.setOnPlaybackStatusUpdate(onPlaybackStatusUpdate);
-              return true;
-            } else {
-              delete audioCacheRef.current[cacheKey];
-            }
-          }
-        } catch (err) {
-          console.warn(`Error waiting for in-progress audio: ${err}`);
-          // Continue to load directly
-        }
-      } else {
-        loadingTrackerRef.current[inProgressKey] = true;
-        // Now start the async load
-        try {
-          // Load from API with better error handling
-          const url = getTtsStreamUrl(text, selectedVoice, index);
-          // Create a timeout promise
-          const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error("Audio loading timeout")), 10000);
-          });
-
-          // Safer loading with explicit error handling
-          let sound: Audio.Sound | null = null;
-          try {
-            const result = (await Promise.race([
-              Audio.Sound.createAsync(
-                {
-                  uri: url,
-                  headers: {
-                    Accept: "audio/mp3",
-                    "Cache-Control": "no-cache",
-                  },
-                },
-                { shouldPlay: false }
-              ),
-              timeoutPromise,
-            ])) as { sound: Audio.Sound };
-
-            sound = result.sound;
-          } catch (loadErr: any) {
-            console.error(`Error creating sound object: ${loadErr}`);
-            throw new Error(
-              `Failed to load audio: ${loadErr.message || "Unknown error"}`
-            );
-          }
-
-          if (!sound) {
-            throw new Error("Sound creation failed");
-          }
-
-          // Configure sound
-          try {
-            await sound.setRateAsync(playbackSpeed, true);
-            sound.setOnPlaybackStatusUpdate(onPlaybackStatusUpdate);
-          } catch (configErr) {
-            console.warn(`Error configuring sound: ${configErr}`);
-            // Continue anyway, these aren't critical failures
-          }
-
-          // Store in cache and current reference
-          audioCacheRef.current[cacheKey] = sound;
-          currentSound.current = sound;
-
-          return true;
-        } finally {
-          // Always clear loading flag
-          loadingTrackerRef.current[inProgressKey] = false;
-        }
-      }
-    } catch (err: any) {
-      console.error(`Error loading audio for paragraph ${index}:`, err);
-
-      // More specific error messages
-      if (err.code === "E_AV_SEEKING") {
-        setError("Audio seeking error. Please try again.");
-      } else if (err.message && err.message.includes("timeout")) {
-        setError("Audio loading timed out. Please check your connection.");
-      } else {
-        setError("Failed to load audio. Please try again.");
-      }
-
-      // Try to retry loading a few times before giving up
-      if (retryCount < 2) {
-        // Short delay before retry
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        return loadAudioForText(text, index, retryCount + 1);
-      }
-
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
     if (isVisible) {
@@ -409,7 +120,11 @@ const FloatingAudioPlayer = ({
       initialParagraphIndex >= 0 &&
       initialParagraphIndex < paragraphs.length
     ) {
-      logCacheStatus("Before paragraph index change");
+      logCacheStatus(
+        "Before paragraph index change",
+        audioCacheRef,
+        loadingTrackerRef
+      );
 
       // Check if this is the last paragraph in the chapter
       setIsLastParagraph(initialParagraphIndex === paragraphs.length - 1);
@@ -483,52 +198,52 @@ const FloatingAudioPlayer = ({
                     console.warn("Error setting up cached audio:", err);
                     // If there's an error with cached audio, fall back to fresh load
                     delete audioCacheRef.current[cacheKey];
-                    loadAudioForText(paragraphText, initialParagraphIndex).then(
-                      () => {
-                        // Auto-play the new paragraph if we were already playing or if this is a new chapter
-                        if (
-                          (isPlaying || isNewChapter) &&
-                          currentSound.current
-                        ) {
-                          currentSound.current
-                            .playAsync()
-                            .then(() => {
-                              setIsPlaying(true);
-                            })
-                            .catch((err) =>
-                              console.warn(
-                                "Error auto-playing after paragraph change:",
-                                err
-                              )
-                            );
-                        }
+                    loadAudioForText(
+                      paragraphText,
+                      initialParagraphIndex,
+                      3,
+                      selectedDialogueVoice,
+                      setError,
+                      setLoading,
+                      currentSound,
+                      audioCacheRef,
+                      loadingTrackerRef,
+                      onPlaybackStatusUpdate,
+                      playbackSpeed,
+                      selectedVoice
+                    ).then(() => {
+                      // Auto-play the new paragraph if we were already playing or if this is a new chapter
+                      if ((isPlaying || isNewChapter) && currentSound.current) {
+                        currentSound.current
+                          .playAsync()
+                          .then(() => {
+                            setIsPlaying(true);
+                          })
+                          .catch((err) =>
+                            console.warn(
+                              "Error auto-playing after paragraph change:",
+                              err
+                            )
+                          );
                       }
-                    );
+                    });
                   });
               } catch (err) {
                 console.warn("Error using cached audio:", err);
-                loadAudioForText(paragraphText, initialParagraphIndex).then(
-                  () => {
-                    // Auto-play the new paragraph if we were already playing or if this is a new chapter
-                    if ((isPlaying || isNewChapter) && currentSound.current) {
-                      currentSound.current
-                        .playAsync()
-                        .then(() => {
-                          setIsPlaying(true);
-                        })
-                        .catch((err) =>
-                          console.warn(
-                            "Error auto-playing after paragraph change:",
-                            err
-                          )
-                        );
-                    }
-                  }
-                );
-              }
-            } else {
-              loadAudioForText(paragraphText, initialParagraphIndex).then(
-                () => {
+                loadAudioForText(
+                  paragraphText,
+                  initialParagraphIndex,
+                  3,
+                  selectedDialogueVoice,
+                  setError,
+                  setLoading,
+                  currentSound,
+                  audioCacheRef,
+                  loadingTrackerRef,
+                  onPlaybackStatusUpdate,
+                  playbackSpeed,
+                  selectedVoice
+                ).then(() => {
                   // Auto-play the new paragraph if we were already playing or if this is a new chapter
                   if ((isPlaying || isNewChapter) && currentSound.current) {
                     currentSound.current
@@ -543,8 +258,38 @@ const FloatingAudioPlayer = ({
                         )
                       );
                   }
+                });
+              }
+            } else {
+              loadAudioForText(
+                paragraphText,
+                initialParagraphIndex,
+                3,
+                selectedDialogueVoice,
+                setError,
+                setLoading,
+                currentSound,
+                audioCacheRef,
+                loadingTrackerRef,
+                onPlaybackStatusUpdate,
+                playbackSpeed,
+                selectedVoice
+              ).then(() => {
+                // Auto-play the new paragraph if we were already playing or if this is a new chapter
+                if ((isPlaying || isNewChapter) && currentSound.current) {
+                  currentSound.current
+                    .playAsync()
+                    .then(() => {
+                      setIsPlaying(true);
+                    })
+                    .catch((err) =>
+                      console.warn(
+                        "Error auto-playing after paragraph change:",
+                        err
+                      )
+                    );
                 }
-              );
+              });
             }
           } else {
             console.warn(
@@ -680,7 +425,17 @@ const FloatingAudioPlayer = ({
 
       const success = await loadAudioForText(
         currentText,
-        initialParagraphIndex
+        initialParagraphIndex,
+        3,
+        selectedDialogueVoice,
+        setError,
+        setLoading,
+        currentSound,
+        audioCacheRef,
+        loadingTrackerRef,
+        onPlaybackStatusUpdate,
+        playbackSpeed,
+        selectedVoice
       );
 
       // Auto-play if this is the first paragraph (likely a new chapter)
@@ -707,10 +462,10 @@ const FloatingAudioPlayer = ({
   // Refactored: Preload next paragraphs until at least 1500 characters are preloaded (current chapter only)
   const preloadNextParagraphs = async () => {
     try {
-      logCacheStatus("Before preload");
+      logCacheStatus("Before preload", audioCacheRef, loadingTrackerRef);
 
       const CHAR_THRESHOLD = 1500;
-      let charCount = 0;
+      let uncachedCharCount = 0; // Only count characters of paragraphs that aren't cached
       let i = 1;
       const paragraphsToPreload: { index: number; text: string }[] = [];
 
@@ -718,52 +473,80 @@ const FloatingAudioPlayer = ({
       while (true) {
         const nextIndex = initialParagraphIndex + i;
         if (nextIndex >= paragraphs.length) break;
+        
         const nextText = paragraphs[nextIndex];
         if (!nextText || nextText.trim().length === 0) {
           i++;
           continue;
         }
-        paragraphsToPreload.push({ index: nextIndex, text: nextText });
-        charCount += nextText.length;
-        if (charCount >= CHAR_THRESHOLD) break;
-        i++;
-      }
 
-      for (const { index: nextIndex, text: nextText } of paragraphsToPreload) {
         const cacheKey = getCacheKey(nextText, selectedVoice);
         const inProgressKey = `loading:${cacheKey}`;
-        if (!audioCacheRef.current[cacheKey] && !loadingTrackerRef.current[inProgressKey]) {
-          loadingTrackerRef.current[inProgressKey] = true;
-          try {
-            const url = getTtsStreamUrl(nextText, selectedVoice, nextIndex);
-            const timeoutPromise = new Promise((_, reject) => {
-              setTimeout(() => reject(new Error("Preload timeout")), 5000);
-            });
-            const loadPromise = Audio.Sound.createAsync(
-              {
-                uri: url,
-                headers: {
-                  Accept: "audio/mp3",
-                  "Cache-Control": "no-cache",
-                },
-              },
-              { shouldPlay: false }
-            );
-            const { sound } = (await Promise.race([
-              loadPromise,
-              timeoutPromise,
-            ])) as { sound: Audio.Sound };
-            await sound.setRateAsync(playbackSpeed, true);
-            audioCacheRef.current[cacheKey] = sound;
-          } catch (err) {
-            console.warn(`Error preloading paragraph ${nextIndex}:`, err);
-          } finally {
-            loadingTrackerRef.current[inProgressKey] = false;
-          }
+        
+        // Only add to preload list if not already cached or being loaded
+        if (
+          !audioCacheRef.current[cacheKey] &&
+          !loadingTrackerRef.current[inProgressKey]
+        ) {
+          paragraphsToPreload.push({ index: nextIndex, text: nextText });
+          uncachedCharCount += nextText.length;
         }
+
+        // Always increment i to move to next paragraph
+        i++;
+        
+        // Break if we have enough uncached characters to preload
+        if (uncachedCharCount >= CHAR_THRESHOLD) break;
       }
 
-      logCacheStatus("After preload");
+      console.log(`Preloading ${paragraphsToPreload.length} paragraphs (${uncachedCharCount} characters)`);
+
+      // Process all preloads in parallel for better performance
+      const preloadPromises = paragraphsToPreload.map(async ({ index: nextIndex, text: nextText }) => {
+        const cacheKey = getCacheKey(nextText, selectedVoice);
+        const inProgressKey = `loading:${cacheKey}`;
+        
+        // Double-check in case another preload started this paragraph
+        if (
+          audioCacheRef.current[cacheKey] ||
+          loadingTrackerRef.current[inProgressKey]
+        ) {
+          return;
+        }
+
+        loadingTrackerRef.current[inProgressKey] = true;
+        try {
+          const audioBlob = await fetchAudio(
+            nextText,
+            selectedVoice,
+            selectedDialogueVoice
+          );
+          const loadPromise = Audio.Sound.createAsync(
+            {
+              uri: URL.createObjectURL(audioBlob),
+              headers: {
+                Accept: "audio/mp3",
+                "Cache-Control": "no-cache",
+              },
+            },
+            { shouldPlay: false }
+          );
+          const { sound } = (await loadPromise) as { sound: Audio.Sound };
+          await sound.setRateAsync(playbackSpeed, true);
+          audioCacheRef.current[cacheKey] = sound;
+          console.log(`Successfully preloaded paragraph ${nextIndex} (${nextText.length} chars)`);
+        } catch (err) {
+          console.warn(`Error preloading paragraph ${nextIndex}:`, err);
+        } finally {
+          // Clean up loading tracker properly
+          delete loadingTrackerRef.current[inProgressKey];
+        }
+      });
+
+      // Wait for all preloads to complete (or fail)
+      await Promise.allSettled(preloadPromises);
+
+      logCacheStatus("After preload", audioCacheRef, loadingTrackerRef);
     } catch (err) {
       console.warn("Error during preload:", err);
     }
@@ -845,7 +628,20 @@ const FloatingAudioPlayer = ({
         }
 
         setLoading(true);
-        const success = await loadAudioForText(text, initialParagraphIndex);
+        const success = await loadAudioForText(
+          text,
+          initialParagraphIndex,
+          3,
+          selectedDialogueVoice,
+          setError,
+          setLoading,
+          currentSound,
+          audioCacheRef,
+          loadingTrackerRef,
+          onPlaybackStatusUpdate,
+          playbackSpeed,
+          selectedVoice
+        );
 
         if (success && currentSound.current) {
           try {
@@ -895,7 +691,7 @@ const FloatingAudioPlayer = ({
       }
 
       isTransitioning.current = true;
-      logCacheStatus("Before transition");
+      logCacheStatus("Before transition", audioCacheRef, loadingTrackerRef);
 
       // First safely stop current audio
       if (currentSound.current) {
@@ -1011,7 +807,20 @@ const FloatingAudioPlayer = ({
       // Rest of the function continues as before, attempting API load...
       // Instead of directly handling waiting logic here, let's simplify by using loadAudioForText
 
-      const success = await loadAudioForText(nextText, nextIndex);
+      const success = await loadAudioForText(
+        nextText,
+        nextIndex,
+        3,
+        selectedDialogueVoice,
+        setError,
+        setLoading,
+        currentSound,
+        audioCacheRef,
+        loadingTrackerRef,
+        onPlaybackStatusUpdate,
+        playbackSpeed,
+        selectedVoice
+      );
 
       // Play it if we were playing before and loading was successful
       if (success && wasPlaying && currentSound.current) {
@@ -1023,7 +832,7 @@ const FloatingAudioPlayer = ({
         }
       }
 
-      logCacheStatus("After transition");
+      logCacheStatus("After transition", audioCacheRef, loadingTrackerRef);
     } catch (err) {
       console.error("Error transitioning to next paragraph:", err);
       setError("Failed to play next paragraph. Please try again.");
@@ -1065,7 +874,6 @@ const FloatingAudioPlayer = ({
           }
         }
       }
-
     } catch (err) {
       console.warn("Error clearing cache for voice change:", err);
     }
@@ -1083,12 +891,10 @@ const FloatingAudioPlayer = ({
     setPlaybackSpeed(speed);
     setShowSpeedDropdown(false);
 
-    // Notify parent component about the speed change
     if (onSpeedChange) {
       onSpeedChange(speed);
     }
 
-    // Apply new speed to current sound
     if (currentSound.current) {
       try {
         await currentSound.current.setRateAsync(speed, true);
@@ -1096,8 +902,11 @@ const FloatingAudioPlayer = ({
         console.error("Error changing playback speed:", err);
       }
     }
+  };
 
-    // No need to clear cache, we'll just update speed when playing
+  const handleDialogueVoiceChange = async (voice: string) => {
+    setSelectedDialogueVoice(voice);
+    setShowDialogueVoiceDropdown(false);
   };
 
   // Render dropdown options in a modal
@@ -1117,8 +926,13 @@ const FloatingAudioPlayer = ({
       >
         <Pressable style={styles.modalOverlay} onPress={onClose}>
           <View style={[styles.modalContainer, { backgroundColor }]}>
-            <Text style={[styles.modalTitle, { color: textColor }]}>{title}</Text>
-            <ScrollView style={styles.optionsScrollView} contentContainerStyle={styles.optionsContainer}>
+            <Text style={[styles.modalTitle, { color: textColor }]}>
+              {title}
+            </Text>
+            <ScrollView
+              style={styles.optionsScrollView}
+              contentContainerStyle={styles.optionsContainer}
+            >
               {options.map((option) => (
                 <TouchableOpacity
                   key={option.value}
@@ -1128,21 +942,34 @@ const FloatingAudioPlayer = ({
                     option.value ===
                       (title.includes("Voice")
                         ? selectedVoice
-                        : playbackSpeed) && [styles.selectedOption, { backgroundColor: primaryColor + '20', borderColor: primaryColor }],
+                        : playbackSpeed) && [
+                      styles.selectedOption,
+                      {
+                        backgroundColor: primaryColor + "20",
+                        borderColor: primaryColor,
+                      },
+                    ],
                   ]}
                   onPress={() => onSelect(option.value)}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.optionText, { color: textColor }]}>{option.label}</Text>
+                  <Text style={[styles.optionText, { color: textColor }]}>
+                    {option.label}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
             <TouchableOpacity
-              style={[styles.closeButton, { backgroundColor: secondaryBackground }]}
+              style={[
+                styles.closeButton,
+                { backgroundColor: secondaryBackground },
+              ]}
               onPress={onClose}
               activeOpacity={0.7}
             >
-              <Text style={[styles.closeButtonText, { color: textColor }]}>Close</Text>
+              <Text style={[styles.closeButtonText, { color: textColor }]}>
+                Close
+              </Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -1158,7 +985,6 @@ const FloatingAudioPlayer = ({
     const checkForStuckTransitions = () => {
       // If we've been in a transition state for too long (5+ seconds), reset it
       if (isTransitioning.current) {
-
         // Get the timestamp from a ref if it exists, or add one
         const transitionStartTime =
           (isTransitioning as any).startTime || Date.now();
@@ -1229,7 +1055,10 @@ const FloatingAudioPlayer = ({
           await currentSound.current.stopAsync().catch(() => {});
           await currentSound.current.unloadAsync().catch(() => {});
         } catch (err) {
-          // ignore
+          console.warn(
+            "Error stopping/unloading audio during chapter transition:",
+            err
+          );
         }
         currentSound.current = null;
       }
@@ -1239,10 +1068,23 @@ const FloatingAudioPlayer = ({
       // Load and play the first paragraph
       const firstText = paragraphs[0];
       if (firstText && firstText.trim().length > 0) {
-        const success = await loadAudioForText(firstText, 0);
+        const success = await loadAudioForText(
+          firstText,
+          0,
+          3,
+          selectedDialogueVoice,
+          setError,
+          setLoading,
+          currentSound,
+          audioCacheRef,
+          loadingTrackerRef,
+          onPlaybackStatusUpdate,
+          playbackSpeed,
+          selectedVoice
+        );
         if (success && currentSound.current) {
           try {
-            await currentSound.current.playAsync();
+            await (currentSound.current as Audio.Sound).playAsync();
             setIsPlaying(true);
           } catch (err) {
             setError("Failed to auto-play new chapter");
@@ -1258,13 +1100,22 @@ const FloatingAudioPlayer = ({
 
   return (
     <Animated.View
-      style={[styles.container, { backgroundColor, shadowColor, transform: [{ translateY: slideAnim }] }]}
+      style={[
+        styles.container,
+        {
+          backgroundColor,
+          shadowColor,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
     >
       <View style={styles.header}>
         <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
           <FontAwesome5 name="times" size={24} color={textColor} solid />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: textColor }]}>Now Playing</Text>
+        <Text style={[styles.headerTitle, { color: textColor }]}>
+          Now Playing
+        </Text>
       </View>
 
       {isLastParagraph && (
@@ -1280,10 +1131,14 @@ const FloatingAudioPlayer = ({
         <View style={styles.settingsContainer}>
           {/* Voice Dropdown */}
           <TouchableOpacity
-            style={[styles.dropdownButton, { backgroundColor: secondaryBackground, shadowColor }]}
+            style={[
+              styles.dropdownButton,
+              { backgroundColor: secondaryBackground, shadowColor },
+            ]}
             onPress={() => {
               setShowVoiceDropdown(true);
               setShowSpeedDropdown(false);
+              setShowDialogueVoiceDropdown(false);
             }}
           >
             <FontAwesome5
@@ -1300,15 +1155,58 @@ const FloatingAudioPlayer = ({
                 )?.label.split(" ")[0]
               }
             </Text>
-            <FontAwesome5 name="chevron-down" size={18} color={primaryColor} solid />
+            <FontAwesome5
+              name="chevron-down"
+              size={18}
+              color={primaryColor}
+              solid
+            />
+          </TouchableOpacity>
+
+          {/* Dialogue Voice Dropdown */}
+          <TouchableOpacity
+            style={[
+              styles.dropdownButton,
+              { backgroundColor: secondaryBackground, shadowColor },
+            ]}
+            onPress={() => {
+              setShowDialogueVoiceDropdown(true);
+              setShowVoiceDropdown(false);
+              setShowSpeedDropdown(false);
+            }}
+          >
+            <FontAwesome5
+              name="comments"
+              size={18}
+              color={primaryColor}
+              style={styles.buttonIcon}
+              solid
+            />
+            <Text style={[styles.dropdownButtonText, { color: primaryColor }]}>
+              {
+                VOICE_OPTIONS.find(
+                  (v) => v.value === selectedDialogueVoice
+                )?.label.split(" ")[0]
+              }
+            </Text>
+            <FontAwesome5
+              name="chevron-down"
+              size={18}
+              color={primaryColor}
+              solid
+            />
           </TouchableOpacity>
 
           {/* Speed Dropdown */}
           <TouchableOpacity
-            style={[styles.dropdownButton, { backgroundColor: secondaryBackground, shadowColor }]}
+            style={[
+              styles.dropdownButton,
+              { backgroundColor: secondaryBackground, shadowColor },
+            ]}
             onPress={() => {
               setShowSpeedDropdown(true);
               setShowVoiceDropdown(false);
+              setShowDialogueVoiceDropdown(false);
             }}
           >
             <FontAwesome5
@@ -1321,7 +1219,12 @@ const FloatingAudioPlayer = ({
             <Text style={[styles.dropdownButtonText, { color: primaryColor }]}>
               {SPEED_OPTIONS.find((s) => s.value === playbackSpeed)?.label}
             </Text>
-            <FontAwesome5 name="chevron-down" size={18} color={primaryColor} solid />
+            <FontAwesome5
+              name="chevron-down"
+              size={18}
+              color={primaryColor}
+              solid
+            />
           </TouchableOpacity>
         </View>
 
@@ -1376,7 +1279,9 @@ const FloatingAudioPlayer = ({
               name="step-forward"
               size={18}
               color={
-                initialParagraphIndex < paragraphs.length - 1 ? primaryColor : "#666"
+                initialParagraphIndex < paragraphs.length - 1
+                  ? primaryColor
+                  : "#666"
               }
               solid
             />
@@ -1391,6 +1296,15 @@ const FloatingAudioPlayer = ({
         handleVoiceChange,
         () => setShowVoiceDropdown(false),
         "Select Voice"
+      )}
+
+      {/* Dialogue Voice Selection Modal */}
+      {renderDropdownModal(
+        showDialogueVoiceDropdown,
+        VOICE_OPTIONS,
+        handleDialogueVoiceChange,
+        () => setShowDialogueVoiceDropdown(false),
+        "Select Dialogue Voice"
       )}
 
       {/* Speed Selection Modal */}
@@ -1409,10 +1323,17 @@ const FloatingAudioPlayer = ({
       )}
 
       {error && (
-        <View style={[styles.errorContainer, { backgroundColor: errorBackground }]}>
-          <Text style={[styles.errorText, { color: errorTextColor }]}>{error}</Text>
+        <View
+          style={[styles.errorContainer, { backgroundColor: errorBackground }]}
+        >
+          <Text style={[styles.errorText, { color: errorTextColor }]}>
+            {error}
+          </Text>
           <TouchableOpacity
-            style={[styles.retryButton, { backgroundColor: errorTextColor, shadowColor }]}
+            style={[
+              styles.retryButton,
+              { backgroundColor: errorTextColor, shadowColor },
+            ]}
             onPress={handleRetry}
             activeOpacity={0.7}
           >
@@ -1423,221 +1344,5 @@ const FloatingAudioPlayer = ({
     </Animated.View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    // backgroundColor will be set dynamically
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 16,
-    paddingBottom: Platform.OS === "ios" ? 30 : 16, // Add extra padding at bottom for iOS
-    elevation: 5,
-    // shadowColor will be set dynamically
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    zIndex: 999,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 10,
-  },
-  headerTitle: {
-    fontSize: 15,
-    fontWeight: "bold",
-    // color will be set dynamically
-  },
-  closeBtn: {
-    position: "absolute",
-    right: 0,
-    padding: 5,
-  },
-  controlsContainer: {
-    marginTop: 8,
-    marginBottom: 5,
-  },
-  settingsContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginBottom: 8,
-  },
-  dropdownButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    // backgroundColor will be set dynamically
-    borderRadius: 16,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    marginHorizontal: 4,
-    // shadowColor will be set dynamically
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.5,
-    elevation: 2,
-  },
-  buttonIcon: {
-    marginRight: 4,
-  },
-  dropdownButtonText: {
-    // color will be set dynamically
-    marginRight: 2,
-    fontSize: 12,
-  },
-  playerContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    marginTop: 8,
-    marginBottom: 10,
-    padding: 4,
-    marginHorizontal: 4,
-  },
-  controlButton: {
-    backgroundColor: "#f0f0f0",
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
-    marginHorizontal: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.5,
-    elevation: 2,
-  },
-  playButton: {
-    // backgroundColor will be set dynamically
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    justifyContent: "center",
-    alignItems: "center",
-    marginHorizontal: 4,
-    // shadowColor will be set dynamically
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.3,
-    shadowRadius: 1,
-    elevation: 2,
-  },
-  disabledButton: {
-    backgroundColor: "#e0e0e0",
-    opacity: 0.7,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalContainer: {
-    width: "80%",
-    // backgroundColor will be set dynamically
-    borderRadius: 12,
-    padding: 20,
-    maxHeight: "80%",
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    // color will be set dynamically
-    textAlign: "center",
-    marginBottom: 15,
-  },
-  optionsContainer: {
-    marginBottom: 15,
-  },
-  optionItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-    borderRadius: 8,
-    marginBottom: 8,
-    ...Platform.select({
-      ios: {
-        minHeight: 44,
-      },
-    }),
-  },
-  selectedOption: {
-    // backgroundColor will be set dynamically
-    // borderColor will be set dynamically
-    borderWidth: 1,
-  },
-  optionText: {
-    fontSize: 16,
-    // color will be set dynamically
-  },
-  closeButton: {
-    padding: 12,
-    // backgroundColor will be set dynamically
-    borderRadius: 8,
-    alignItems: "center",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 1.5,
-        minHeight: 44,
-      },
-    }),
-  },
-  closeButtonText: {
-    fontSize: 16,
-    // color will be set dynamically
-    fontWeight: "bold",
-  },
-  loadingIndicator: {
-    padding: 10,
-    alignItems: "center",
-  },
-  errorContainer: {
-    padding: 12,
-    alignItems: "center",
-    // backgroundColor will be set dynamically
-    borderRadius: 8,
-    margin: 10,
-  },
-  errorText: {
-    // color will be set dynamically
-    marginBottom: 8,
-    fontSize: 15,
-  },
-  retryButton: {
-    padding: 10,
-    paddingHorizontal: 20,
-    // backgroundColor will be set dynamically
-    borderRadius: 6,
-    // shadowColor will be set dynamically
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.5,
-    elevation: 2,
-  },
-  retryText: {
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 15,
-  },
-  chapterStatusContainer: {
-    paddingVertical: 5,
-    marginBottom: 8,
-    alignItems: "center",
-  },
-  lastParagraphText: {
-    // color will be set dynamically
-    fontWeight: "bold",
-    fontSize: 14,
-  },
-  optionsScrollView: {
-    maxHeight: 250, // Adjust as needed for your design
-  },
-});
 
 export default FloatingAudioPlayer;

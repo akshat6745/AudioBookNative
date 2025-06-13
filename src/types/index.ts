@@ -1,3 +1,4 @@
+import { Audio } from "expo-av";
 export interface Novel {
   id: string | null;
   title: string;
@@ -42,3 +43,26 @@ export type RootStackParamList = {
   AudioPlayer: { text: string; title: string, paragraphs: string[], paragraphIndex: number };
   [key: string]: undefined | object;
 } 
+
+
+export type FloatingAudioPlayerProps = {
+  paragraphs: string[];
+  initialParagraphIndex: number;
+  setActiveParagraphIndex: (index: number) => void;
+  onParagraphComplete: (index: number) => void;
+  onChapterComplete?: () => void; // Callback when all paragraphs in chapter are finished
+  isVisible: boolean;
+  onClose: () => void;
+  selectedVoice?: string; // Optional prop to control the voice from parent
+  onVoiceChange?: (voice: string) => void; // Callback when voice changes
+  playbackSpeed?: number; // Optional prop to control the speed from parent
+  onSpeedChange?: (speed: number) => void; // Callback when speed changes
+};
+
+export type AudioCacheType = {
+  [key: string]: Audio.Sound;
+};
+
+export interface LoadingTracker {
+  [key: string]: boolean;
+}
